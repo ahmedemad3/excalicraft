@@ -1,0 +1,1784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ExcaliDraw Pro — Hand-drawn Diagramming Tool</title>
+  <meta name="description" content="A hand-drawn whiteboard and diagramming tool powered by Rough.js and HTML5 Canvas, inspired by Excalidraw.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; object-src 'none'; frame-ancestors 'none';">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body class="theme-light">
+  <div id="app">
+    <!-- Top Floating Toolbar -->
+    <header class="top-nav">
+      <div class="brand">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
+            <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
+            <path d="M2 2l7.586 7.586"></path>
+            <circle cx="11" cy="11" r="2"></circle>
+          </svg>
+        </div>
+        <div class="brand-info">
+          <span class="brand-name">Excali<span class="brand-accent">Craft</span></span>
+        </div>
+      </div>
+
+      <!-- Action Tools (Middle Bar) -->
+      <nav class="tool-palette" id="toolPalette" aria-label="Drawing Tools">
+        <button class="tool-btn" data-tool="hand" title="Hand / Pan Tool (H or Space Drag)" id="tool-hand">
+          <i data-lucide="hand"></i>
+          <span class="hotkey">H</span>
+        </button>
+        <button class="tool-btn active" data-tool="select" title="Selection (V or 1)" id="tool-select">
+          <i data-lucide="mouse-pointer-2"></i>
+          <span class="hotkey">1</span>
+        </button>
+        <button class="tool-btn" data-tool="rectangle" title="Rectangle (R or 2)" id="tool-rectangle">
+          <i data-lucide="square"></i>
+          <span class="hotkey">2</span>
+        </button>
+        <button class="tool-btn" data-tool="diamond" title="Diamond (D or 3)" id="tool-diamond">
+          <i data-lucide="diamond"></i>
+          <span class="hotkey">3</span>
+        </button>
+        <button class="tool-btn" data-tool="ellipse" title="Ellipse (C or 4)" id="tool-ellipse">
+          <i data-lucide="circle"></i>
+          <span class="hotkey">4</span>
+        </button>
+        <button class="tool-btn" data-tool="arrow" title="Arrow (A or 5)" id="tool-arrow">
+          <i data-lucide="arrow-right"></i>
+          <span class="hotkey">5</span>
+        </button>
+        <button class="tool-btn" data-tool="elbow-arrow" title="Elbow Flow Arrow (O or Shift+A)" id="tool-elbow-arrow">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block;">
+            <circle cx="5" cy="5" r="2.5" fill="currentColor"/>
+            <path d="M5 7.5 v6 a3 3 0 0 0 3 3 h7 a3 3 0 0 1 3 3 v2"/>
+            <polyline points="15 19 18 22 21 19"/>
+          </svg>
+          <span class="hotkey">O</span>
+        </button>
+        <button class="tool-btn" data-tool="line" title="Line (L or 6)" id="tool-line">
+          <i data-lucide="minus"></i>
+          <span class="hotkey">6</span>
+        </button>
+        <button class="tool-btn" data-tool="freedraw" title="Pencil / Freedraw (P or 7)" id="tool-freedraw">
+          <i data-lucide="pencil"></i>
+          <span class="hotkey">7</span>
+        </button>
+        <button class="tool-btn" data-tool="text" title="Text (T or 8)" id="tool-text">
+          <i data-lucide="type"></i>
+          <span class="hotkey">8</span>
+        </button>
+        <button class="tool-btn" data-tool="eraser" title="Eraser (E or 9)" id="tool-eraser">
+          <i data-lucide="eraser"></i>
+          <span class="hotkey">9</span>
+        </button>
+        <button class="tool-btn" data-tool="image" title="Insert Image (I)" id="tool-image">
+          <i data-lucide="image"></i>
+          <span class="hotkey">I</span>
+        </button>
+        <button class="tool-btn" data-tool="node" title="Eraser Architecture Node (N or 0)" id="tool-node">
+          <i data-lucide="server"></i>
+          <span class="hotkey">0</span>
+        </button>
+        <div class="tool-divider"></div>
+        <button class="tool-btn" id="btn-lock" title="Keep tool active after drawing" data-active="false">
+          <i data-lucide="lock"></i>
+        </button>
+      </nav>
+
+      <!-- Right Header Actions -->
+      <div class="top-actions">
+        <!-- Templates Dropdown Menu -->
+        <div class="dropdown-wrapper" id="templatesDropdownWrapper">
+          <button class="action-btn pill-btn" id="btn-templates-menu" title="Insert Prebuilt Architecture Diagram">
+            <i data-lucide="layout-template"></i>
+            <span>Templates</span>
+            <i data-lucide="chevron-down" class="dropdown-arrow-icon"></i>
+          </button>
+          <div class="dropdown-menu tiered-menu" id="templatesDropdownMenu" style="display: none;">
+            <!-- Category 1: Cloud Architecture -->
+            <div class="tiered-item-wrap">
+              <button class="tiered-category-btn">
+                <span class="cat-label">☁️ Cloud Architecture</span>
+                <i data-lucide="chevron-left" class="cat-arrow"></i>
+              </button>
+              <div class="tiered-submenu">
+                <div class="dropdown-header">Cloud Architectures</div>
+                <button class="dropdown-item" data-template="aws" id="tpl-aws">
+                  <div class="item-icon micro" style="background: rgba(255, 153, 0, 0.15); color: #ff9900;"><i data-lucide="cloud"></i></div>
+                  <div class="item-text">
+                    <strong>AWS Serverless Architecture</strong>
+                    <span>CloudFront, API Gateway, Lambda, DynamoDB & S3</span>
+                  </div>
+                </button>
+                <button class="dropdown-item" data-template="google" id="tpl-google">
+                  <div class="item-icon erd" style="background: rgba(66, 133, 244, 0.15); color: #4285f4;"><i data-lucide="cloud"></i></div>
+                  <div class="item-text">
+                    <strong>Google Cloud (GCP) Enterprise</strong>
+                    <span>Cloud Run, Cloud Functions, Pub/Sub, Cloud SQL & BigQuery</span>
+                  </div>
+                </button>
+                <button class="dropdown-item" data-template="azure" id="tpl-azure">
+                  <div class="item-icon seq" style="background: rgba(0, 120, 212, 0.15); color: #0078d4;"><i data-lucide="cloud"></i></div>
+                  <div class="item-text">
+                    <strong>Microsoft Azure Architecture (HA/DR)</strong>
+                    <span>Multi-Region East US & West US DR Standby</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <!-- Category 2: Architecture Patterns -->
+            <div class="tiered-item-wrap">
+              <button class="tiered-category-btn">
+                <span class="cat-label">🏗️ Architecture Patterns</span>
+                <i data-lucide="chevron-left" class="cat-arrow"></i>
+              </button>
+              <div class="tiered-submenu">
+                <div class="dropdown-header">System Patterns</div>
+                <button class="dropdown-item" data-template="microservices" id="tpl-microservices">
+                  <div class="item-icon seq" style="background: rgba(25, 113, 194, 0.15); color: #1971c2;"><i data-lucide="network"></i></div>
+                  <div class="item-text">
+                    <strong>Microservices Cloud</strong>
+                    <span>Envoy Gateway, Auth, Orders, Redis & Kafka Bus</span>
+                  </div>
+                </button>
+                <button class="dropdown-item" data-template="modular-monolith" id="tpl-modular-monolith">
+                  <div class="item-icon erd" style="background: rgba(121, 80, 242, 0.15); color: #7950f2;"><i data-lucide="boxes"></i></div>
+                  <div class="item-text">
+                    <strong>Modular Monolithic Core</strong>
+                    <span>In-Process Event Bus, Bounded Modules & Segregated DB</span>
+                  </div>
+                </button>
+                <button class="dropdown-item" data-template="monolithic" id="tpl-monolithic">
+                  <div class="item-icon micro" style="background: rgba(224, 49, 49, 0.15); color: #e03131;"><i data-lucide="layers"></i></div>
+                  <div class="item-text">
+                    <strong>Monolithic System Architecture</strong>
+                    <span>Nginx, Presentation, Domain Logic, Postgres & Cache</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <!-- Category 3: UML Diagrams -->
+            <div class="tiered-item-wrap">
+              <button class="tiered-category-btn">
+                <span class="cat-label">📐 UML Diagrams</span>
+                <i data-lucide="chevron-left" class="cat-arrow"></i>
+              </button>
+              <div class="tiered-submenu">
+                <div class="dropdown-header">UML & Process Models</div>
+                <button class="dropdown-item" data-template="activity-diagram" id="tpl-activity-diagram">
+                  <div class="item-icon micro" style="background: rgba(47, 158, 68, 0.15); color: #2f9e44;"><i data-lucide="git-branch"></i></div>
+                  <div class="item-text">
+                    <strong>Activity Diagram (Swimlanes)</strong>
+                    <span>4-Swimlane Expense Process, Approval & Rejection Flows</span>
+                  </div>
+                </button>
+                <button class="dropdown-item" data-template="logic-flowchart" id="tpl-flowchart">
+                  <div class="item-icon micro" style="background: rgba(25, 113, 194, 0.15); color: #1971c2;"><i data-lucide="workflow"></i></div>
+                  <div class="item-text">
+                    <strong>Flow Chart Diagram (Logic)</strong>
+                    <span>Start/End, Input Validation, Hash Check & Decision Branching</span>
+                  </div>
+                </button>
+                <button class="dropdown-item" data-template="sequence" id="tpl-sequence">
+                  <div class="item-icon seq"><i data-lucide="arrow-left-right"></i></div>
+                  <div class="item-text">
+                    <strong>API Sequence Diagram</strong>
+                    <span>Actors, Continuous Lifelines, Activation Boxes & Responses</span>
+                  </div>
+                </button>
+                <button class="dropdown-item" data-template="state-machine" id="tpl-state-machine">
+                  <div class="item-icon erd" style="background: rgba(247, 103, 7, 0.15); color: #f76707;"><i data-lucide="activity"></i></div>
+                  <div class="item-text">
+                    <strong>UML State Machine Diagram</strong>
+                    <span>Initial ●, State Actions Compartments, Choice & Final ◉</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <!-- Category 4: Database Design -->
+            <div class="tiered-item-wrap">
+              <button class="tiered-category-btn">
+                <span class="cat-label">🗄️ Database & Storage</span>
+                <i data-lucide="chevron-left" class="cat-arrow"></i>
+              </button>
+              <div class="tiered-submenu">
+                <div class="dropdown-header">Schema & Relational Models</div>
+                <button class="dropdown-item" data-template="erd" id="tpl-erd">
+                  <div class="item-icon erd"><i data-lucide="database"></i></div>
+                  <div class="item-text">
+                    <strong>Relational Database Schema (ERD)</strong>
+                    <span>Dedicated Tables (users, orders, payments) with PK/FK</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <!-- Category 5: Quantitative System Design & HA -->
+            <div class="tiered-item-wrap">
+              <button class="tiered-category-btn">
+                <span class="cat-label">⚡ System Design & Scale</span>
+                <i data-lucide="chevron-left" class="cat-arrow"></i>
+              </button>
+              <div class="tiered-submenu">
+                <div class="dropdown-header">Capacity & High Availability Models</div>
+                <button class="dropdown-item" data-template="flash-sale" id="tpl-flash-sale">
+                  <div class="item-icon micro" style="background: rgba(224, 49, 49, 0.15); color: #e03131;"><i data-lucide="zap"></i></div>
+                  <div class="item-text">
+                    <strong>E-Commerce Flash Sale Architecture</strong>
+                    <span>50k QPS Peak, CDN, API Gateway, Redis & Aurora SPOF</span>
+                  </div>
+                </button>
+                <button class="dropdown-item" data-template="global-ha" id="tpl-global-ha">
+                  <div class="item-icon seq" style="background: rgba(25, 113, 194, 0.15); color: #1971c2;"><i data-lucide="globe"></i></div>
+                  <div class="item-text">
+                    <strong>Global Microservices with Multi-Region HA</strong>
+                    <span>Route53 Latency Routing, Active-Active VPCs & Cross-Region Bus</span>
+                  </div>
+                </button>
+                <button class="dropdown-item" data-template="fintech-pci" id="tpl-fintech-pci">
+                  <div class="item-icon erd" style="background: rgba(18, 184, 134, 0.15); color: #12b886;"><i data-lucide="shield-check"></i></div>
+                  <div class="item-text">
+                    <strong>Fintech Payment Gateway (PCI Subnets)</strong>
+                    <span>Public DMZ, Isolated Processing & Hardware HSM Zones</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <!-- Category 6: C4 Model Architecture (Simon Brown Standard) -->
+            <div class="tiered-item-wrap">
+              <button class="tiered-category-btn">
+                <span class="cat-label">🏛️ C4 Model Architecture</span>
+                <i data-lucide="chevron-left" class="cat-arrow"></i>
+              </button>
+              <div class="tiered-submenu">
+                <div class="dropdown-header">C4 Hierarchy & Container Models</div>
+                <button class="dropdown-item" data-template="c4-container" id="tpl-c4-container">
+                  <div class="item-icon seq" style="background: rgba(17, 104, 189, 0.15); color: #1168bd;"><i data-lucide="boxes"></i></div>
+                  <div class="item-text">
+                    <strong>C4 Container Architecture Diagram</strong>
+                    <span>Customer Person, React SPA, Mobile App, Spring Boot API & DB</span>
+                  </div>
+                </button>
+                <button class="dropdown-item" data-template="c4-context" id="tpl-c4-context">
+                  <div class="item-icon micro" style="background: rgba(8, 66, 123, 0.15); color: #08427b;"><i data-lucide="building"></i></div>
+                  <div class="item-text">
+                    <strong>C4 System Context Diagram</strong>
+                    <span>Customer, Banking System Context, Mainframe Core & Email</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button class="action-btn pill-btn" id="btn-metrics-toggle" title="Toggle System Design Telemetry Overlays (Alt+M)">
+          <i data-lucide="activity"></i>
+          <span>Telemetry</span>
+        </button>
+
+        <button class="action-btn pill-btn" id="btn-present" title="Presentation Stage Mode (F)">
+          <i data-lucide="presentation"></i>
+          <span>Present</span>
+        </button>
+
+        <button class="action-btn pill-btn highlight" id="btn-export-menu" title="Export or Import diagram">
+          <i data-lucide="download"></i>
+          <span>Export/Import</span>
+        </button>
+
+        <button class="action-btn icon-only" id="btn-shortcuts-help" title="Keyboard Shortcuts (?)">
+          <i data-lucide="help-circle"></i>
+        </button>
+
+        <button class="action-btn icon-only" id="btn-theme-toggle" title="Toggle Light / Dark Mode">
+          <i data-lucide="moon" id="theme-icon"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Canvas Container -->
+    <main class="canvas-viewport" id="viewport">
+      <canvas id="drawingCanvas"></canvas>
+
+      <!-- Welcome / Empty State Onboarding Card -->
+      <div id="welcomeOnboarding" class="welcome-onboarding-card" style="display: none;">
+        <div class="onboarding-badge"><i data-lucide="sparkles"></i> Welcome to ExcaliCraft</div>
+        <h2 class="onboarding-title">Expressive System Architecture & Diagramming</h2>
+        <p class="onboarding-sub">Start sketching freely, or load a production-ready starter template:</p>
+        <div class="onboarding-pills">
+          <button class="onboarding-pill" data-onboarding-template="microservices">
+            <span class="pill-emoji">☁️</span>
+            <div class="pill-meta">
+              <strong>Microservices Cloud</strong>
+              <span>API Gateway, Redis & Kafka</span>
+            </div>
+          </button>
+          <button class="onboarding-pill" data-onboarding-template="c4-container">
+            <span class="pill-emoji">🏛️</span>
+            <div class="pill-meta">
+              <strong>C4 Container Model</strong>
+              <span>SPA, API App & PostgreSQL</span>
+            </div>
+          </button>
+          <button class="onboarding-pill" data-onboarding-template="erd">
+            <span class="pill-emoji">🗄️</span>
+            <div class="pill-meta">
+              <strong>Relational ERD</strong>
+              <span>Users, Orders & Foreign Keys</span>
+            </div>
+          </button>
+          <button class="onboarding-pill" data-onboarding-template="flash-sale">
+            <span class="pill-emoji">⚡</span>
+            <div class="pill-meta">
+              <strong>Flash Sale Scale</strong>
+              <span>50k QPS, Telemetry & SPOF</span>
+            </div>
+          </button>
+        </div>
+        <div class="onboarding-footer">
+          <button class="action-btn pill-btn secondary-btn" id="btn-onboarding-blank">
+            <i data-lucide="pencil"></i> <span>Start with Blank Canvas</span>
+          </button>
+        </div>
+      </div>
+      
+      <!-- Inline Text Editor (Overlaid when typing) -->
+      <textarea id="inlineTextEditor" class="inline-text-editor" style="display: none;" spellcheck="false"></textarea>
+
+      <!-- On-Canvas Architecture Quick Edit Popover (Double Click on Service Node) -->
+      <div id="nodeQuickEditModal" class="node-quick-edit-popover" style="display: none;">
+        <div class="popover-header">
+          <div class="popover-title-wrap">
+            <i data-lucide="layers" class="popover-icon"></i>
+            <span>Edit Service Node</span>
+          </div>
+          <button id="btn-close-quick-edit" class="popover-close-btn" title="Close"><i data-lucide="x"></i></button>
+        </div>
+        <div class="popover-body">
+          <label class="popover-label">Service Title</label>
+          <input type="text" id="quickEditTitle" class="arch-text-input" placeholder="e.g. Auth Service">
+          
+          <label class="popover-label">Technology Stack / Subtitle</label>
+          <input type="text" id="quickEditSubtitle" class="arch-text-input" placeholder="e.g. Node.js · Express · Port 3000">
+
+          <label class="popover-label">Status / Role Badge</label>
+          <input type="text" id="quickEditBadge" class="arch-text-input" placeholder="e.g. SERVICE">
+        </div>
+        <div class="popover-footer">
+          <button id="btn-apply-quick-edit" class="btn-primary" style="width: 100%;">Save Changes</button>
+        </div>
+      </div>
+
+      <!-- Bottom-Left Zoom & Navigation Controls -->
+      <div class="bottom-left-controls">
+        <div class="control-group">
+          <button class="zoom-btn" id="btn-zoom-out" title="Zoom Out (Ctrl -)">
+            <i data-lucide="minus"></i>
+          </button>
+          <span class="zoom-value" id="zoomDisplay" title="Click to reset zoom">100%</span>
+          <button class="zoom-btn" id="btn-zoom-in" title="Zoom In (Ctrl +)">
+            <i data-lucide="plus"></i>
+          </button>
+        </div>
+        <div class="control-group">
+          <button class="icon-btn" id="btn-undo" title="Undo (Ctrl+Z)" disabled>
+            <i data-lucide="undo-2"></i>
+          </button>
+          <button class="icon-btn" id="btn-redo" title="Redo (Ctrl+Y)" disabled>
+            <i data-lucide="redo-2"></i>
+          </button>
+        </div>
+        <div class="control-group">
+          <button class="icon-btn" id="btn-toggle-grid" title="Toggle Grid (G)">
+            <i data-lucide="grid-3x3"></i>
+          </button>
+          <button class="icon-btn" id="btn-clear-canvas" title="Clear Canvas">
+            <i data-lucide="trash-2"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Floating Button to Open Properties Panel when closed -->
+      <button class="properties-toggle-btn" id="btn-open-properties" title="Open Properties Panel" style="display: none;">
+        <i data-lucide="sliders-horizontal"></i>
+        <span>Properties</span>
+      </button>
+
+      <!-- Properties / Style Inspector (Left Floating Panel) -->
+      <aside class="property-inspector" id="propertyInspector">
+        <div class="panel-header">
+          <div class="panel-header-title">
+            <i data-lucide="sliders-horizontal" class="panel-title-icon"></i>
+            <span class="panel-title">Properties</span>
+          </div>
+          <div class="panel-header-actions">
+            <span class="selection-status" id="selectionCountBadge">Default</span>
+            <button class="panel-close-btn" id="btn-close-properties" title="Close Properties Panel">
+              <i data-lucide="x"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- 0. Canvas Background Color (First Element in Properties - Excalidraw Standard) -->
+        <div class="inspector-section" id="sec-canvas-bg">
+          <label class="section-label">Canvas background</label>
+          <div class="color-palette-row">
+            <div class="color-palette" id="canvasBgColorPalette">
+              <button type="button" class="color-swatch active" data-color="#ffffff" style="background: #ffffff;" title="White"></button>
+              <button type="button" class="color-swatch" data-color="#f8f9fa" style="background: #f8f9fa;" title="Warm Gray"></button>
+              <button type="button" class="color-swatch" data-color="#f1f3f5" style="background: #f1f3f5;" title="Cool Gray"></button>
+              <button type="button" class="color-swatch" data-color="#fff9db" style="background: #fff9db;" title="Sand"></button>
+              <button type="button" class="color-swatch" data-color="#e6fcf5" style="background: #e6fcf5;" title="Mint Aqua"></button>
+              <button type="button" class="color-swatch" data-color="#e7f5ff" style="background: #e7f5ff;" title="Sky Blue"></button>
+              <button type="button" class="color-swatch" data-color="#fff0f6" style="background: #fff0f6;" title="Rose Pink"></button>
+              <button type="button" class="color-swatch" data-color="#121212" style="background: #121212;" title="Dark Charcoal"></button>
+            </div>
+            <div class="palette-divider"></div>
+            <div class="custom-color-wrap" title="Custom Canvas Background Color">
+              <input type="color" id="customCanvasBgColor" value="#ffffff" class="color-picker-input">
+            </div>
+          </div>
+        </div>
+
+        <!-- 1. Node Architecture Inspector (Visible when a Node Card is selected) -->
+        <div class="inspector-section arch-section" id="nodeInspectorSection" style="display: none;">
+          <div class="arch-badge-header">
+            <span class="arch-type-pill"><i data-lucide="server"></i> ARCHITECTURE NODE</span>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Service Title</label>
+            <input type="text" id="propNodeTitle" class="arch-text-input" placeholder="e.g. Auth Service">
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Subtitle / Technology</label>
+            <input type="text" id="propNodeSubtitle" class="arch-text-input" placeholder="e.g. Node.js · Express · Port 3000">
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Category Badge</label>
+            <input type="text" id="propNodeBadge" class="arch-text-input" placeholder="e.g. SERVICE">
+            <div class="arch-pill-presets" id="nodeBadgePresets">
+              <button class="badge-chip" data-badge="EDGE">EDGE</button>
+              <button class="badge-chip" data-badge="SERVICE">SERVICE</button>
+              <button class="badge-chip" data-badge="DATABASE">DATABASE</button>
+              <button class="badge-chip" data-badge="CACHE">CACHE</button>
+              <button class="badge-chip" data-badge="QUEUE">QUEUE</button>
+              <button class="badge-chip" data-badge="VPC">VPC</button>
+            </div>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Architecture Icon</label>
+            <div class="arch-provider-filter" id="iconProviderFilter">
+              <button class="arch-filter-btn active" data-provider="all">All</button>
+              <button class="arch-filter-btn" data-provider="aws">AWS</button>
+              <button class="arch-filter-btn" data-provider="gcp">Google</button>
+              <button class="arch-filter-btn" data-provider="azure">Azure</button>
+              <button class="arch-filter-btn" data-provider="tech">Tech</button>
+            </div>
+            <div class="arch-icon-picker-grid" id="nodeIconPickerGrid">
+              <!-- Populated by JS with Cloud & Lucide Icons -->
+            </div>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Accent Theme</label>
+            <div class="arch-color-palette" id="nodeAccentPalette">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">C4 Architecture Level</label>
+            <div class="segmented-control c4-level-control" id="nodeC4LevelControl">
+              <button class="segment-btn active" data-c4-level="">None</button>
+              <button class="segment-btn" data-c4-level="context">Context</button>
+              <button class="segment-btn" data-c4-level="container">Container</button>
+              <button class="segment-btn" data-c4-level="component">Component</button>
+              <button class="segment-btn" data-c4-level="deployment">Deploy</button>
+            </div>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Service Processing Latency</label>
+            <div class="arch-input-unit-wrap">
+              <input type="number" id="propNodeLatency" class="arch-text-input" placeholder="e.g. 15" min="0" max="100000" step="5">
+              <span class="arch-input-unit">ms</span>
+            </div>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Max Capacity / Saturation Limit</label>
+            <div class="arch-input-unit-wrap">
+              <input type="number" id="propNodeCapacity" class="arch-text-input" placeholder="e.g. 25000" min="0" max="10000000" step="1000">
+              <span class="arch-input-unit">QPS</span>
+            </div>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 11px; font-weight: 600; color: #fa5252; padding: 4px 0;">
+              <input type="checkbox" id="propNodeIsSpof" style="accent-color: #e03131; cursor: pointer; width: 15px; height: 15px;">
+              <span>⚠️ Mark as Single Point of Failure (SPOF)</span>
+            </label>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Card Style</label>
+            <div class="segmented-control" id="nodeCardStyleControl">
+              <button class="segment-btn active" data-card-style="modern">Modern Crisp</button>
+              <button class="segment-btn" data-card-style="sketch">Hand-Drawn</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Connector / Flow Inspector (Visible when Arrow/Line selected) -->
+        <div class="inspector-section arch-section" id="connectorInspectorSection" style="display: none;">
+          <div class="arch-badge-header">
+            <span class="arch-type-pill"><i data-lucide="arrow-right-left"></i> FLOW CONNECTOR</span>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Connection Protocol / Label</label>
+            <input type="text" id="propArrowLabel" class="arch-text-input" placeholder="e.g. gRPC / Protobuf, HTTPS">
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Traffic Throughput Volume</label>
+            <div class="arch-input-unit-wrap">
+              <input type="number" id="propConnectorQps" class="arch-text-input" placeholder="e.g. 10000" min="0" max="10000000" step="500">
+              <span class="arch-input-unit">QPS</span>
+            </div>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Network Hop Latency</label>
+            <div class="arch-input-unit-wrap">
+              <input type="number" id="propConnectorLatency" class="arch-text-input" placeholder="e.g. 8" min="0" max="10000" step="1">
+              <span class="arch-input-unit">ms</span>
+            </div>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Connector Routing</label>
+            <div class="segmented-control" id="arrowRoutingControl">
+              <button class="segment-btn active" data-arrow-routing="straight">Straight</button>
+              <button class="segment-btn" data-arrow-routing="orthogonal">Elbow (Stepped)</button>
+            </div>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Flow Direction</label>
+            <div class="segmented-control" id="arrowDirectionControl">
+              <button class="segment-btn active" data-arrow-direction="forward">One-Way &rarr;</button>
+              <button class="segment-btn" data-arrow-direction="bidirectional">&larr; Two-Way &rarr;</button>
+              <button class="segment-btn" data-arrow-direction="none">&mdash; Line</button>
+            </div>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-checkbox-label">
+              <input type="checkbox" id="propArrowAnimated" class="arch-checkbox">
+              <span><i data-lucide="zap" class="inline-icon"></i> Animated Packet Flow</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 3. Group Boundary Inspector (Visible when Group Boundary selected) -->
+        <div class="inspector-section arch-section" id="groupInspectorSection" style="display: none;">
+          <div class="arch-badge-header">
+            <span class="arch-type-pill"><i data-lucide="box"></i> GROUP / VPC BOUNDARY</span>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Network Archetype</label>
+            <div class="segmented-control boundary-archetype-control" id="groupArchetypeControl">
+              <button class="segment-btn active" data-boundary-type="standard">Standard</button>
+              <button class="segment-btn" data-boundary-type="enterprise">Enterprise</button>
+              <button class="segment-btn" data-boundary-type="system">System</button>
+              <button class="segment-btn" data-boundary-type="vpc">VPC</button>
+              <button class="segment-btn" data-boundary-type="public-subnet">Public</button>
+              <button class="segment-btn" data-boundary-type="private-subnet">Private</button>
+              <button class="segment-btn" data-boundary-type="k8s-cluster">K8s</button>
+            </div>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Boundary Label</label>
+            <input type="text" id="propGroupTitle" class="arch-text-input" placeholder="e.g. AWS Production VPC">
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">CIDR Network Block</label>
+            <input type="text" id="propGroupCidr" class="arch-text-input" placeholder="e.g. 10.0.0.0/16 or 172.16.0.0/24">
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Border Style</label>
+            <div class="segmented-control" id="groupBorderStyleControl">
+              <button class="segment-btn active" data-group-border="dashed">Dashed</button>
+              <button class="segment-btn" data-group-border="solid">Solid</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3.5 C4 Architecture Model Inspector (Visible when C4 element selected) -->
+        <div class="inspector-section arch-section" id="c4InspectorSection" style="display: none;">
+          <div class="arch-badge-header">
+            <span class="arch-type-pill" id="c4InspectorBadge" style="color: #1168bd; background: rgba(17, 104, 189, 0.12);"><i data-lucide="layers"></i> C4 PRIMITIVE</span>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Element Title</label>
+            <input type="text" id="propC4Title" class="arch-text-input" placeholder="e.g. Banking Customer">
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Description / Subtitle</label>
+            <input type="text" id="propC4Subtitle" class="arch-text-input" placeholder="e.g. Customer with personal accounts">
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">C4 Shape</label>
+            <div class="segmented-control" id="c4ShapeControl">
+              <button class="segment-btn active" data-c4-shape="person">Person</button>
+              <button class="segment-btn" data-c4-shape="system">System</button>
+              <button class="segment-btn" data-c4-shape="database">Database</button>
+              <button class="segment-btn" data-c4-shape="queue">Queue</button>
+            </div>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-checkbox-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 11px; font-weight: 600; color: #495057; padding: 4px 0;">
+              <input type="checkbox" id="propC4IsExt" style="accent-color: #495057; cursor: pointer; width: 15px; height: 15px;">
+              <span>🌐 External Element (Muted grey style)</span>
+            </label>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Type Annotation Tag</label>
+            <input type="text" id="propC4Tag" class="arch-text-input" placeholder="e.g. [Person] or [Software System]">
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Theme Accent</label>
+            <div class="arch-color-palette" id="c4AccentPalette">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. ERD Table Inspector (Visible when an ERD Table is selected) -->
+        <div class="inspector-section arch-section" id="erdTableInspectorSection" style="display: none;">
+          <div class="arch-badge-header">
+            <span class="arch-type-pill" style="color: #1971c2; background: rgba(25, 113, 194, 0.12);"><i data-lucide="database"></i> DATABASE TABLE (ERD)</span>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Table Name</label>
+            <input type="text" id="propErdTableName" class="arch-text-input" placeholder="e.g. users, orders, accounts">
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Table Type / Badge</label>
+            <input type="text" id="propErdTableType" class="arch-text-input" placeholder="e.g. BASE TABLE, VIEW, PARTITIONED">
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Table Accent Theme</label>
+            <div class="arch-color-palette" id="erdTableAccentPalette">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+
+          <div class="arch-field">
+            <div class="erd-columns-header">
+              <span>Columns Schema</span>
+              <button class="btn-sub" id="btn-erd-add-col" style="padding: 2px 8px; font-size: 10px;">
+                <i data-lucide="plus"></i> Add Col
+              </button>
+            </div>
+            <div class="erd-columns-list" id="erdColumnsList">
+              <!-- Populated dynamically with column rows -->
+            </div>
+          </div>
+
+          <div class="arch-field" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-color, rgba(0,0,0,0.1));">
+            <label class="arch-field-label">SQL DDL Actions</label>
+            <div style="display: flex; gap: 6px; flex-direction: column;">
+              <button class="action-btn" id="btnCopyTableSqlDdl" style="justify-content: center; width: 100%; font-size: 11px; padding: 7px 10px; background: #1971c2; color: #fff; font-weight: 600; border-radius: 6px; border: none; cursor: pointer;">
+                <i data-lucide="copy"></i> Copy Table SQL DDL
+              </button>
+              <div style="display: flex; gap: 6px;">
+                <button class="action-btn" id="btnPreviewTableSqlDdl" style="flex: 1; justify-content: center; font-size: 11px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color, #dee2e6); cursor: pointer; background: var(--bg-surface, #f8f9fa); color: var(--text-primary, #212529);">
+                  <i data-lucide="code"></i> Preview SQL
+                </button>
+                <button class="action-btn" id="btnDownloadTableSqlFile" style="flex: 1; justify-content: center; font-size: 11px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color, #dee2e6); cursor: pointer; background: var(--bg-surface, #f8f9fa); color: var(--text-primary, #212529);">
+                  <i data-lucide="download"></i> .sql File
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. UML State Machine Inspector (Visible when state-node is selected) -->
+        <div class="inspector-section arch-section" id="stateNodeInspectorSection" style="display: none;">
+          <div class="arch-badge-header">
+            <span class="arch-type-pill" style="color: #f76707; background: rgba(247, 103, 7, 0.12);"><i data-lucide="activity"></i> STATE MACHINE NODE</span>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">State Title</label>
+            <input type="text" id="propStateTitle" class="arch-text-input" placeholder="e.g. Authenticated, Processing">
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">State Role</label>
+            <div class="segmented-control" id="stateTypeControl">
+              <button class="segment-btn active" data-state-type="normal">Normal</button>
+              <button class="segment-btn" data-state-type="initial">Initial ●</button>
+              <button class="segment-btn" data-state-type="final">Final ◉</button>
+            </div>
+          </div>
+
+          <div class="arch-field" id="stateActionsField">
+            <label class="arch-field-label">Actions Compartment</label>
+            <textarea id="propStateActions" class="arch-text-input" rows="3" style="resize: vertical; font-family: 'JetBrains Mono', monospace; font-size: 11px;" placeholder="entry / startWorker()&#10;do / processQueue()&#10;exit / notifyDone()"></textarea>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">State Accent Theme</label>
+            <div class="arch-color-palette" id="stateAccentPalette">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- 6. Swimlane Inspector (Visible when swimlane is selected) -->
+        <div class="inspector-section arch-section" id="swimlaneInspectorSection" style="display: none;">
+          <div class="arch-badge-header">
+            <span class="arch-type-pill" style="color: #2f9e44; background: rgba(47, 158, 68, 0.12);"><i data-lucide="git-branch"></i> PROCESS SWIMLANE</span>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Lane Title / Department</label>
+            <input type="text" id="propSwimlaneTitle" class="arch-text-input" placeholder="e.g. Finance Dept, Auth Service">
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Lane Accent Theme</label>
+            <div class="arch-color-palette" id="swimlaneAccentPalette">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- 7. Sequence Activation Box Inspector -->
+        <div class="inspector-section arch-section" id="activationBoxInspectorSection" style="display: none;">
+          <div class="arch-badge-header">
+            <span class="arch-type-pill" style="color: #1971c2; background: rgba(25, 113, 194, 0.12);"><i data-lucide="arrow-down"></i> ACTIVATION EXECUTION BOX</span>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Activation Height</label>
+            <input type="number" id="propActivationHeight" class="arch-text-input" min="30" max="600" step="10">
+          </div>
+        </div>
+
+        <!-- 8. Decision / Merge Diamond Node Inspector -->
+        <div class="inspector-section arch-section" id="diamondInspectorSection" style="display: none;">
+          <div class="arch-badge-header">
+            <span class="arch-type-pill" style="color: #f59f00; background: rgba(245, 159, 0, 0.12);"><i data-lucide="diamond"></i> DECISION / MERGE NODE</span>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Condition / Question</label>
+            <input type="text" id="propDiamondText" class="arch-text-input" placeholder="e.g. Is Valid?, [status == 'OK']">
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Accent Theme</label>
+            <div class="arch-color-palette" id="diamondAccentPalette">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- 9. Activity Action State Inspector -->
+        <div class="inspector-section arch-section" id="actionNodeInspectorSection" style="display: none;">
+          <div class="arch-badge-header">
+            <span class="arch-type-pill" style="color: #2f9e44; background: rgba(47, 158, 68, 0.12);"><i data-lucide="play-circle"></i> ACTIVITY ACTION STEP</span>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Action Label</label>
+            <input type="text" id="propActionTitle" class="arch-text-input" placeholder="e.g. Validate Payload, Process Payment">
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Accent Theme</label>
+            <div class="arch-color-palette" id="actionAccentPalette">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- 10. Component Library & Quick Architecture Creator (Visible when canvas has no selection) -->
+        <div class="inspector-section arch-section" id="canvasQuickAddSection">
+          <div class="arch-badge-header">
+            <span class="arch-type-pill"><i data-lucide="blocks"></i> COMPONENT LIBRARY</span>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">🗄️ Database & Storage</label>
+            <div class="comp-btn-grid">
+              <button class="comp-btn primary" id="btn-add-erd-table" title="Add Relational Database Table with Columns">
+                <i data-lucide="database"></i> + ERD Table
+              </button>
+              <button class="comp-btn" id="btn-add-postgres-node" title="Add PostgreSQL Database Component">
+                <i data-lucide="hard-drive"></i> PostgreSQL
+              </button>
+              <button class="comp-btn" id="btn-add-redis-node" title="Add Redis In-Memory Cache Component">
+                <i data-lucide="zap"></i> Redis Cache
+              </button>
+              <button class="comp-btn" id="btn-add-kafka-node" title="Add Kafka Event Queue Component">
+                <i data-lucide="radio"></i> Kafka Queue
+              </button>
+            </div>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">📐 UML & Flowcharts</label>
+            <div class="comp-btn-grid">
+              <button class="comp-btn primary" id="btn-add-activity-action" title="Add Activity Action State">
+                <i data-lucide="play-circle"></i> + Action Step
+              </button>
+              <button class="comp-btn" id="btn-add-decision-diamond" title="Add Flowchart / Activity Decision Diamond">
+                <i data-lucide="diamond"></i> Decision ◇
+              </button>
+              <button class="comp-btn" id="btn-add-fork-bar" title="Add Activity Concurrent Fork Bar">
+                <i data-lucide="split"></i> Fork Bar ━
+              </button>
+              <button class="comp-btn" id="btn-add-join-bar" title="Add Activity Synchronization Join Bar">
+                <i data-lucide="merge"></i> Join Bar ━
+              </button>
+              <button class="comp-btn" id="btn-add-initial-state" title="Add Initial Start Node">
+                <i data-lucide="circle-dot"></i> Initial ●
+              </button>
+              <button class="comp-btn" id="btn-add-final-state" title="Add Activity Final Node">
+                <i data-lucide="disc"></i> Final ◉
+              </button>
+              <button class="comp-btn" id="btn-add-flow-final" title="Add Flow Final Node (Terminates 1 Branch)">
+                <i data-lucide="x-circle"></i> Flow Final ⊗
+              </button>
+              <button class="comp-btn" id="btn-add-swimlane" title="Add Activity Process Swimlane">
+                <i data-lucide="columns-3"></i> Swimlane
+              </button>
+              <button class="comp-btn" id="btn-add-lifeline" title="Add Sequence Participant Lifeline">
+                <i data-lucide="user-check"></i> Lifeline
+              </button>
+              <button class="comp-btn" id="btn-add-activation-box" title="Add Activation Execution Box">
+                <i data-lucide="rectangle-vertical"></i> Activation Box
+              </button>
+              <button class="comp-btn" id="btn-add-state-node" title="Add UML State Node with Actions">
+                <i data-lucide="activity"></i> State Node
+              </button>
+            </div>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">🏗️ System Architecture & Boundaries</label>
+            <div class="comp-btn-grid">
+              <button class="comp-btn" id="btn-quick-add-node">
+                <i data-lucide="server"></i> Service Node
+              </button>
+              <button class="comp-btn" id="btn-add-gateway-node">
+                <i data-lucide="shield"></i> API Gateway
+              </button>
+              <button class="comp-btn" id="btn-quick-add-group">
+                <i data-lucide="cloud"></i> Cloud VPC
+              </button>
+              <button class="comp-btn" id="btn-add-public-subnet">
+                <i data-lucide="globe"></i> Public Subnet
+              </button>
+              <button class="comp-btn" id="btn-add-private-subnet">
+                <i data-lucide="lock"></i> Private Subnet
+              </button>
+              <button class="comp-btn" id="btn-add-k8s-cluster">
+                <i data-lucide="boxes"></i> K8s Cluster
+              </button>
+              <button class="comp-btn" id="btn-quick-add-arrow">
+                <i data-lucide="arrow-up-right"></i> Flow Arrow
+              </button>
+            </div>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">🏛️ C4 Architecture Primitives</label>
+            <div class="comp-btn-grid">
+              <button class="comp-btn" id="btn-add-c4-person" title="C4 Person / User Persona">
+                <i data-lucide="user"></i> Person
+              </button>
+              <button class="comp-btn" id="btn-add-c4-person-ext" title="C4 External Person">
+                <i data-lucide="user-check"></i> Ext Person
+              </button>
+              <button class="comp-btn" id="btn-add-c4-system" title="C4 Software System Context">
+                <i data-lucide="building"></i> System
+              </button>
+              <button class="comp-btn" id="btn-add-c4-system-ext" title="C4 External Software System">
+                <i data-lucide="building-2"></i> Ext System
+              </button>
+              <button class="comp-btn" id="btn-add-c4-container" title="C4 Application Container">
+                <i data-lucide="boxes"></i> Container
+              </button>
+              <button class="comp-btn" id="btn-add-c4-component" title="C4 Controller / Component">
+                <i data-lucide="cpu"></i> Component
+              </button>
+              <button class="comp-btn" id="btn-add-c4-db" title="C4 Database Container">
+                <i data-lucide="database"></i> Database
+              </button>
+              <button class="comp-btn" id="btn-add-c4-db-ext" title="C4 External Database">
+                <i data-lucide="database-backup"></i> Ext DB
+              </button>
+              <button class="comp-btn" id="btn-add-c4-queue" title="C4 Message Queue / Bus">
+                <i data-lucide="arrow-left-right"></i> Queue / Bus
+              </button>
+              <button class="comp-btn" id="btn-add-c4-enterprise-boundary" title="C4 Enterprise Boundary">
+                <i data-lucide="globe"></i> Enterprise Bnd
+              </button>
+              <button class="comp-btn" id="btn-add-c4-system-boundary" title="C4 System Boundary">
+                <i data-lucide="box"></i> System Bnd
+              </button>
+            </div>
+          </div>
+
+          <div class="arch-field" style="margin-top: 10px;">
+            <label class="arch-field-label">Smart Templates</label>
+            <div class="quick-tpl-pills">
+              <button class="quick-tpl-pill" data-quick-template="c4-container">🏛️ C4 Container</button>
+              <button class="quick-tpl-pill" data-quick-template="c4-context">🏛️ C4 Context</button>
+              <button class="quick-tpl-pill" data-quick-template="flash-sale">⚡ Flash Sale</button>
+              <button class="quick-tpl-pill" data-quick-template="global-ha">🌐 Global HA</button>
+              <button class="quick-tpl-pill" data-quick-template="microservices">Microservices</button>
+              <button class="quick-tpl-pill" data-quick-template="erd">Database ERD</button>
+              <button class="quick-tpl-pill" data-quick-template="sequence">Sequence</button>
+              <button class="quick-tpl-pill" data-quick-template="logic-flowchart">Flowchart</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. Standard Geometric & Text Drawing Controls -->
+        <div id="standardShapeSection">
+          <!-- Stroke Color -->
+          <div class="inspector-section" id="sec-stroke">
+            <label class="section-label">Stroke</label>
+            <div class="color-palette-row">
+              <div class="color-palette" id="strokeColorPalette">
+                <!-- Populated dynamically via JS -->
+              </div>
+              <div class="palette-divider"></div>
+              <div class="custom-color-wrap" title="Custom Stroke Color">
+                <input type="color" id="customStrokeColor" value="#1e1e1e" class="color-picker-input">
+              </div>
+            </div>
+          </div>
+
+          <!-- Background Color -->
+          <div class="inspector-section" id="sec-bg">
+            <label class="section-label">Background</label>
+            <div class="color-palette-row">
+              <div class="color-palette" id="bgColorPalette">
+                <!-- Populated dynamically via JS -->
+              </div>
+              <div class="palette-divider"></div>
+              <div class="custom-color-wrap" title="Custom Background Color">
+                <input type="color" id="customBgColor" value="#a5d8ff" class="color-picker-input">
+              </div>
+            </div>
+          </div>
+
+          <!-- Fill Style (Image 2: Hachure, Cross-hatch, Solid) -->
+          <div class="inspector-section" id="sec-fill">
+            <label class="section-label">Fill</label>
+            <div class="segmented-control excali-control" id="fillStyleControl">
+              <button class="segment-btn active" data-fill-style="hachure" title="Hachure">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" stroke-width="1.5"/>
+                  <line x1="5" y1="19" x2="19" y2="5"/>
+                  <line x1="5" y1="12" x2="12" y2="5"/>
+                  <line x1="12" y1="19" x2="19" y2="12"/>
+                </svg>
+              </button>
+              <button class="segment-btn" data-fill-style="cross-hatch" title="Cross-hatch">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" stroke-width="1.5"/>
+                  <line x1="8" y1="3" x2="8" y2="21"/>
+                  <line x1="16" y1="3" x2="16" y2="21"/>
+                  <line x1="3" y1="8" x2="21" y2="8"/>
+                  <line x1="3" y1="16" x2="21" y2="16"/>
+                </svg>
+              </button>
+              <button class="segment-btn" data-fill-style="solid" title="Solid">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="4" y="4" width="16" height="16" rx="2"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Stroke Width (Image 2: Thin, Med, Thick) -->
+          <div class="inspector-section" id="sec-stroke-width">
+            <label class="section-label">Stroke width</label>
+            <div class="segmented-control excali-control" id="strokeWidthControl">
+              <button class="segment-btn active" data-width="1.5" title="Thin">
+                <svg width="22" height="4"><line x1="2" y1="2" x2="20" y2="2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              </button>
+              <button class="segment-btn" data-width="2.5" title="Regular / Medium">
+                <svg width="22" height="4"><line x1="2" y1="2" x2="20" y2="2" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+              </button>
+              <button class="segment-btn" data-width="4.5" title="Bold / Heavy">
+                <svg width="22" height="6"><line x1="2" y1="3" x2="20" y2="3" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Stroke Style (Image 2: Solid, Dashed, Dotted) -->
+          <div class="inspector-section" id="sec-stroke-style">
+            <label class="section-label">Stroke style</label>
+            <div class="segmented-control excali-control" id="strokeStyleControl">
+              <button class="segment-btn active" data-stroke-style="solid" title="Solid">
+                <svg width="22" height="6"><line x1="2" y1="3" x2="20" y2="3" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+              </button>
+              <button class="segment-btn" data-stroke-style="dashed" title="Dashed">
+                <svg width="22" height="6"><line x1="2" y1="3" x2="20" y2="3" stroke="currentColor" stroke-width="2.5" stroke-dasharray="5 3" stroke-linecap="round"/></svg>
+              </button>
+              <button class="segment-btn" data-stroke-style="dotted" title="Dotted">
+                <svg width="22" height="6"><line x1="2" y1="3" x2="20" y2="3" stroke="currentColor" stroke-width="2.5" stroke-dasharray="2 3" stroke-linecap="round"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Sloppiness / Roughness (Image 2: Architect, Artist, Cartoonist) -->
+          <div class="inspector-section" id="sec-roughness">
+            <label class="section-label">Sloppiness</label>
+            <div class="segmented-control excali-control" id="roughnessControl">
+              <button class="segment-btn" data-roughness="0" title="Architect (Clean geometric)">
+                <svg width="22" height="14" viewBox="0 0 24 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M 3 8 L 21 8"/></svg>
+              </button>
+              <button class="segment-btn active" data-roughness="1.2" title="Artist (Hand-drawn)">
+                <svg width="22" height="14" viewBox="0 0 24 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M 3 9 Q 8 3, 13 9 T 21 9"/></svg>
+              </button>
+              <button class="segment-btn" data-roughness="2.4" title="Cartoonist (Extra sketchy)">
+                <svg width="22" height="14" viewBox="0 0 24 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M 3 6 Q 8 2, 13 6 T 21 6"/><path d="M 3 11 Q 8 7, 13 11 T 21 11"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Edges (Image 2: Sharp, Rounded) -->
+          <div class="inspector-section" id="sec-edges">
+            <label class="section-label">Edges</label>
+            <div class="segmented-control excali-control" id="edgesControl">
+              <button class="segment-btn active" data-edges="sharp" title="Sharp Corners">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3 3">
+                  <rect x="3" y="3" width="18" height="18" rx="0"/>
+                </svg>
+              </button>
+              <button class="segment-btn" data-edges="round" title="Rounded Corners">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3 3">
+                  <rect x="3" y="3" width="18" height="18" rx="6"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Font Family (Image 1 & 2: Virgil, Normal, Code, Comic) -->
+          <div class="inspector-section" id="sec-font-family">
+            <label class="section-label">Font family</label>
+            <div class="segmented-control excali-control" id="fontFamilyControl">
+              <button class="segment-btn active" data-font-family="1" title="Hand-drawn (Virgil / Excalifont)">
+                <i data-lucide="pencil" style="width: 14px; height: 14px;"></i>
+              </button>
+              <button class="segment-btn" data-font-family="2" title="Normal / Sans-Serif (Nunito / Helvetica)">
+                <span style="font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 700;">A</span>
+              </button>
+              <button class="segment-btn" data-font-family="3" title="Code / Monospace (Cascadia / JetBrains)">
+                <span style="font-family: monospace; font-size: 13px; font-weight: 700;">&lt;/&gt;</span>
+              </button>
+              <button class="segment-btn" data-font-family="4" title="Comic / Assistant">
+                <span style="font-family: 'Times New Roman', serif; font-size: 16px; font-weight: 700; font-style: italic;">A</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Font Size (Image 1 & 2: S, M, L, XL) -->
+          <div class="inspector-section" id="sec-font-size">
+            <label class="section-label">Font size</label>
+            <div class="segmented-control excali-control" id="fontSizeControl">
+              <button class="segment-btn" data-font-size="16" title="Small (16px)">
+                <span style="font-size: 13px; font-weight: 600;">S</span>
+              </button>
+              <button class="segment-btn active" data-font-size="20" title="Medium (20px)">
+                <span style="font-size: 14px; font-weight: 600;">M</span>
+              </button>
+              <button class="segment-btn" data-font-size="28" title="Large (28px)">
+                <span style="font-size: 15px; font-weight: 600;">L</span>
+              </button>
+              <button class="segment-btn" data-font-size="36" title="Extra Large (36px)">
+                <span style="font-size: 14px; font-weight: 700;">XL</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Text Align (Image 1 & 2: Horizontal & Vertical) -->
+          <div class="inspector-section" id="sec-text-align">
+            <label class="section-label">Text align</label>
+            <div class="text-align-grid">
+              <!-- Row 1: Horizontal Alignment -->
+              <div class="segmented-control excali-control" id="textAlignControl">
+                <button class="segment-btn active" data-text-align="left" title="Align Left">
+                  <i data-lucide="align-left" style="width: 15px; height: 15px;"></i>
+                </button>
+                <button class="segment-btn" data-text-align="center" title="Align Center">
+                  <i data-lucide="align-center" style="width: 15px; height: 15px;"></i>
+                </button>
+                <button class="segment-btn" data-text-align="right" title="Align Right">
+                  <i data-lucide="align-right" style="width: 15px; height: 15px;"></i>
+                </button>
+              </div>
+              <!-- Row 2: Vertical Alignment -->
+              <div class="segmented-control excali-control" id="verticalAlignControl">
+                <button class="segment-btn" data-vertical-align="top" title="Align Top">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="4" x2="21" y2="4"/>
+                    <rect x="7" y="8" width="10" height="12" rx="1.5"/>
+                  </svg>
+                </button>
+                <button class="segment-btn active" data-vertical-align="middle" title="Align Middle">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="12" x2="21" y2="12"/>
+                    <rect x="7" y="5" width="10" height="14" rx="1.5"/>
+                  </svg>
+                </button>
+                <button class="segment-btn" data-vertical-align="bottom" title="Align Bottom">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="20" x2="21" y2="20"/>
+                    <rect x="7" y="4" width="10" height="12" rx="1.5"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Opacity Slider (Image 1 & 2) -->
+          <div class="inspector-section" id="sec-opacity">
+            <div class="slider-header">
+              <label class="section-label">Opacity</label>
+              <span class="slider-val" id="opacityValue">100%</span>
+            </div>
+            <input type="range" id="opacitySlider" min="0" max="100" value="100" class="custom-range">
+            <div class="slider-ticks">
+              <span>0</span>
+              <span>100</span>
+            </div>
+          </div>
+
+          <!-- Layers Actions (Image 1 & 2: Send to back, Send backward, Bring forward, Bring to front) -->
+          <div class="inspector-section" id="sec-layers">
+            <label class="section-label">Layers</label>
+            <div class="segmented-control excali-control" id="layersControl">
+              <button class="segment-btn" id="btn-layer-to-back" title="Send to back (Ctrl+Shift+[)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <line x1="3" y1="21" x2="21" y2="21"/>
+                  <path d="m7 12 5 5 5-5"/>
+                  <line x1="12" y1="3" x2="12" y2="17"/>
+                </svg>
+              </button>
+              <button class="segment-btn" id="btn-layer-backward" title="Send backward (Ctrl+[)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <path d="m7 13 5 5 5-5"/>
+                  <line x1="12" y1="4" x2="12" y2="18"/>
+                </svg>
+              </button>
+              <button class="segment-btn" id="btn-layer-forward" title="Bring forward (Ctrl+])">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <path d="m7 11 5-5 5 5"/>
+                  <line x1="12" y1="20" x2="12" y2="6"/>
+                </svg>
+              </button>
+              <button class="segment-btn" id="btn-layer-to-front" title="Bring to front (Ctrl+Shift+])">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <line x1="3" y1="3" x2="21" y2="3"/>
+                  <path d="m7 12 5-5 5 5"/>
+                  <line x1="12" y1="21" x2="12" y2="7"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="inspector-section" id="actionsSection">
+          <label class="section-label">Actions</label>
+          <div class="button-grid">
+            <button class="btn-sub" id="btn-duplicate" title="Duplicate (Ctrl+D)">
+              <i data-lucide="copy"></i> Copy
+            </button>
+            <button class="btn-sub danger" id="btn-delete" title="Delete (Del / Backspace)">
+              <i data-lucide="trash"></i> Delete
+            </button>
+          </div>
+        </div>
+
+        <!-- Live Element Inspector Preview -->
+        <div class="inspector-section debug-section">
+          <label class="section-label">Element Schema Live Telemetry</label>
+          <div class="element-json-preview" id="elementJsonPreview">
+            <span>Select an element to see its raw JSON schema and Rough.js seed.</span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Canvas Minimap / Overview Radar -->
+      <div class="minimap-container" id="minimapContainer">
+        <div class="minimap-header">
+          <div class="minimap-title-wrap">
+            <i data-lucide="map" class="minimap-header-icon"></i>
+            <span class="minimap-title">Radar (M)</span>
+          </div>
+          <button class="minimap-close-btn" id="btn-close-minimap" title="Hide Minimap (M)">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <canvas id="minimapCanvas" width="200" height="130"></canvas>
+      </div>
+
+      <!-- Floating Presentation Stage Controls Pill -->
+      <div class="presentation-controls" id="presentationControls" style="display: none;">
+        <button class="pres-btn" id="btn-pres-fit" title="Zoom to Fit">
+          <i data-lucide="maximize-2"></i>
+          <span>Fit</span>
+        </button>
+        <button class="pres-btn pres-exit" id="btn-pres-exit" title="Exit Presentation (Esc)">
+          <i data-lucide="x"></i>
+          <span>Exit (Esc)</span>
+        </button>
+      </div>
+
+      <!-- Bottom Hint Bar -->
+      <footer class="bottom-hints">
+        <span class="hint-item"><kbd>Space</kbd> + Drag to Pan</span>
+        <span class="hint-item"><kbd>Ctrl</kbd> + Scroll to Zoom</span>
+        <span class="hint-item"><kbd>M</kbd> Minimap</span>
+        <span class="hint-item"><kbd>F</kbd> Present</span>
+        <span class="hint-item"><kbd>Double Click</kbd> to edit text</span>
+        <span class="hint-item"><kbd>Del</kbd> to remove</span>
+      </footer>
+    </main>
+
+    <!-- Modal: Architecture & Evidence -->
+    <div class="modal-overlay" id="archModal" style="display: none;">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <div class="modal-badge">Architecture Deep Dive</div>
+            <h2>How Excalidraw Works (Evidence & Anatomy)</h2>
+          </div>
+          <button class="modal-close" id="btn-close-arch-modal">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="evidence-tabs">
+            <button class="tab-btn active" data-tab="rendering">1. Rough.js & Rendering Engine</button>
+            <button class="tab-btn" data-tab="data-model">2. Mathematical Element Model</button>
+            <button class="tab-btn" data-tab="coordinates">3. Coordinate Transforms & Pan/Zoom</button>
+            <button class="tab-btn" data-tab="live-test">4. Interactive Rough.js Tester</button>
+          </div>
+
+          <div class="tab-content active" id="tab-rendering">
+            <h3>The Core Secret: Rough.js and Deterministic Pseudo-Random Seeds</h3>
+            <p>
+              Excalidraw does <strong>not</strong> implement its own hand-drawn jitter algorithm from scratch. Instead, it delegates all sketchy strokes and hachure fills to <strong>Rough.js</strong> (created by Preet Shihn).
+            </p>
+            <div class="code-evidence-box">
+              <div class="code-header">Source Evidence: Excalidraw packages/excalidraw/renderer/renderElement.ts</div>
+              <pre><code>// Excalidraw creates a RoughCanvas wrapper over native HTML5 Canvas
+const roughCanvas = rough.canvas(canvas);
+
+// Deterministic seed is stored ON THE ELEMENT to prevent shimmering/jittering across frames:
+const shape = generator.rectangle(x, y, width, height, {
+  seed: element.seed,         // e.g., 184920492
+  roughness: element.roughness, // 0 = architectural, 1 = hand-drawn, 2 = cartoon
+  stroke: element.strokeColor,
+  fill: element.backgroundColor,
+  fillStyle: element.fillStyle, // 'hachure' | 'cross-hatch' | 'solid' | 'dots'
+  strokeWidth: element.strokeWidth
+});
+roughCanvas.draw(shape);</code></pre>
+            </div>
+            <div class="insight-card">
+              <strong>Why <code>seed</code> is the most critical property:</strong>
+              If Rough.js were called with random numbers on every frame, every time you pan, zoom, or move your mouse, the jittered strokes would fluctuate wildly (like high-frequency static noise). By persisting an integer <code>seed</code> per element, the PRNG produces the <em>exact same jittered path coordinates</em> frame after frame.
+            </div>
+          </div>
+
+          <div class="tab-content" id="tab-data-model">
+            <h3>Excalidraw Element Schema (JSON Model)</h3>
+            <p>Every shape in Excalidraw is a pure, serializable JavaScript object. In <code>@excalidraw/element/types.ts</code>:</p>
+            <div class="code-evidence-box">
+              <div class="code-header">Element Schema Definition (@excalidraw/element)</div>
+              <pre><code>interface ExcalidrawElement {
+  id: string;               // Unique nanoid/uuid
+  type: "rectangle" | "diamond" | "ellipse" | "arrow" | "line" | "freedraw" | "text";
+  x: number;                // World coordinate X
+  y: number;                // World coordinate Y
+  width: number;
+  height: number;
+  angle: number;            // Rotation in radians
+  strokeColor: string;
+  backgroundColor: string;
+  fillStyle: "hachure" | "cross-hatch" | "solid" | "dots";
+  strokeWidth: number;
+  strokeStyle: "solid" | "dashed" | "dotted";
+  roughness: number;        // 0 to 2.5
+  opacity: number;          // 0 to 100
+  seed: number;             // Deterministic PRNG seed for Rough.js
+  points?: [number, number][]; // For lines, arrows, and freedraw
+  text?: string;            // For text elements
+  fontSize?: number;
+}</code></pre>
+            </div>
+          </div>
+
+          <div class="tab-content" id="tab-coordinates">
+            <h3>Screen Space vs. Scene Space (Pan & Zoom Math)</h3>
+            <p>The canvas allows infinite panning and continuous pinch/wheel zooming. All mouse events occur in <strong>Screen Space</strong>, but all element positions must be stored in <strong>Scene (World) Space</strong>:</p>
+            <div class="math-card">
+              <div class="formula">
+                <strong>Screen to Scene (on pointer click/draw):</strong><br>
+                <code>sceneX = (clientX - scrollX) / zoom</code><br>
+                <code>sceneY = (clientY - scrollY) / zoom</code>
+              </div>
+              <div class="formula">
+                <strong>Scene to Screen (when rendering):</strong><br>
+                <code>ctx.save();</code><br>
+                <code>ctx.translate(scrollX, scrollY);</code><br>
+                <code>ctx.scale(zoom, zoom);</code><br>
+                <code>// Now draw all elements in their native scene coordinates!</code><br>
+                <code>ctx.restore();</code>
+              </div>
+            </div>
+          </div>
+
+          <div class="tab-content" id="tab-live-test">
+            <h3>Interactive Rough.js Parameter Experimenter</h3>
+            <p>Adjust parameters below to see how Rough.js creates the signature sketchy hand-drawn feel in real time:</p>
+            <div class="demo-rough-playground">
+              <div class="demo-controls">
+                <label>Roughness: <span id="demoRoughnessVal">1.5</span></label>
+                <input type="range" id="demoRoughness" min="0" max="3" step="0.2" value="1.5">
+                <label>Fill Style:</label>
+                <select id="demoFillStyle">
+                  <option value="hachure">Hachure (Sketch lines)</option>
+                  <option value="cross-hatch">Cross-hatch</option>
+                  <option value="solid">Solid</option>
+                  <option value="dots">Dots</option>
+                  <option value="zigzag">Zigzag</option>
+                </select>
+                <button class="btn-sub" id="btn-demo-reseed">Regenerate Seed (Jitter Change)</button>
+              </div>
+              <canvas id="demoRoughCanvas" width="400" height="220" class="demo-canvas-box"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Export Dialog -->
+    <div class="modal-overlay" id="exportModal" style="display: none;">
+      <div class="modal-card small">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <h2>Export Diagram</h2>
+          </div>
+          <button class="modal-close" id="btn-close-export-modal">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="export-options">
+            <div class="export-option-card" id="export-png">
+              <div class="opt-icon"><i data-lucide="image"></i></div>
+              <div class="opt-text">
+                <strong>Export as PNG</strong>
+                <span>High-resolution raster image with transparent or white background.</span>
+              </div>
+            </div>
+            <div class="export-option-card" id="export-svg">
+              <div class="opt-icon"><i data-lucide="file-code-2"></i></div>
+              <div class="opt-text">
+                <strong>Export as SVG</strong>
+                <span>Scalable vector graphic maintaining hand-drawn vector paths.</span>
+              </div>
+            </div>
+            <div class="export-option-card" id="export-pdf">
+              <div class="opt-icon"><i data-lucide="file-text"></i></div>
+              <div class="opt-text">
+                <strong>Export as PDF</strong>
+                <span>Publication-quality vector PDF document, formatted to diagram aspect ratio.</span>
+              </div>
+            </div>
+            <div class="export-option-card" id="export-gif">
+              <div class="opt-icon" style="background: rgba(240, 140, 0, 0.15); color: #f08c00;"><i data-lucide="sparkles"></i></div>
+              <div class="opt-text">
+                <strong>Export as Animated GIF</strong>
+                <span>Record live signal flow pulses in a seamless looping GIF for documentation.</span>
+              </div>
+            </div>
+            <div class="export-option-card" id="export-sql-ddl">
+              <div class="opt-icon" style="background: rgba(51, 103, 145, 0.15); color: #336791;"><i data-lucide="database"></i></div>
+              <div class="opt-text">
+                <strong>Export as SQL DDL (.sql)</strong>
+                <span>Generate ANSI / PostgreSQL / MySQL DDL with tables, primary keys, and foreign keys.</span>
+              </div>
+            </div>
+            <div class="export-option-card" id="export-mermaid">
+              <div class="opt-icon" style="background: rgba(18, 184, 134, 0.15); color: #12b886;"><i data-lucide="code-2"></i></div>
+              <div class="opt-text">
+                <strong>Mermaid.js Interop (Export / Import)</strong>
+                <span>Bi-directional synchronization for Sequence Flows, Flowcharts, and ERDs.</span>
+              </div>
+            </div>
+            <div class="export-option-card" id="export-json">
+              <div class="opt-icon"><i data-lucide="file-json"></i></div>
+              <div class="opt-text">
+                <strong>Export as JSON / .excalidraw</strong>
+                <span>Save raw diagram scene graph to edit later.</span>
+              </div>
+            </div>
+            <div class="export-option-card" id="import-image-trigger">
+              <div class="opt-icon" style="background: rgba(34, 139, 230, 0.15); color: #228be6;"><i data-lucide="image"></i></div>
+              <div class="opt-text">
+                <strong>Insert / Import Image</strong>
+                <span>Add PNG, JPG, SVG, WebP, or GIF image to the canvas.</span>
+              </div>
+            </div>
+            <div class="export-option-card" id="import-json-trigger">
+              <div class="opt-icon"><i data-lucide="upload"></i></div>
+              <div class="opt-text">
+                <strong>Import JSON / .excalidraw</strong>
+                <span>Load a previously saved diagram file.</span>
+              </div>
+            </div>
+          </div>
+          <div id="hiddenFileInputs" style="display: none;">
+            <input type="file" id="fileInput" accept=".json,.excalidraw" style="display: none;">
+            <input type="file" id="imageFileInput" accept="image/*,.png,.jpg,.jpeg,.svg,.webp,.gif" style="display: none;">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: SQL DDL Preview & Export -->
+    <div class="modal-overlay" id="sqlPreviewModal" style="display: none;">
+      <div class="modal-card fancy-modal" style="max-width: 680px;">
+        <div class="modal-header fancy-modal-header">
+          <div class="modal-title-wrap">
+            <div class="modal-badge"><i data-lucide="database"></i> SQL DDL GENERATOR</div>
+            <h2 id="sqlPreviewTitle">Database Schema DDL</h2>
+          </div>
+          <button class="modal-close" id="btn-close-sql-modal">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="modal-body fancy-modal-body">
+          <div class="modal-toolbar-row">
+            <div class="dialect-group">
+              <span class="toolbar-label">Dialect:</span>
+              <div class="segmented-control fancy-segment" id="sqlDialectControl">
+                <button class="segment-btn active" data-dialect="postgres">PostgreSQL</button>
+                <button class="segment-btn" data-dialect="mysql">MySQL</button>
+                <button class="segment-btn" data-dialect="ansi">ANSI SQL</button>
+              </div>
+            </div>
+            <div class="action-btn-group">
+              <button class="action-btn pill-btn primary-glow" id="btnCopySqlModal">
+                <i data-lucide="copy"></i> <span>Copy SQL</span>
+              </button>
+              <button class="action-btn pill-btn secondary-btn" id="btnDownloadSqlModal">
+                <i data-lucide="download"></i> <span>Download .sql</span>
+              </button>
+            </div>
+          </div>
+          <div class="fancy-code-window">
+            <div class="fancy-window-bar">
+              <div class="fancy-window-dots">
+                <span class="w-dot dot-red"></span>
+                <span class="w-dot dot-yellow"></span>
+                <span class="w-dot dot-green"></span>
+              </div>
+              <span class="fancy-window-title">schema.sql</span>
+              <span class="fancy-window-badge">SQL DDL</span>
+            </div>
+            <textarea id="sqlCodePreview" readonly class="fancy-code-editor" spellcheck="false"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Mermaid.js Export & Import -->
+    <div class="modal-overlay" id="mermaidModal" style="display: none;">
+      <div class="modal-card fancy-modal" style="max-width: 680px;">
+        <div class="modal-header fancy-modal-header">
+          <div class="modal-title-wrap">
+            <div class="modal-badge emerald-badge"><i data-lucide="code-2"></i> MERMAID.JS INTEROP</div>
+            <h2>Bi-directional Mermaid Sync</h2>
+          </div>
+          <button class="modal-close" id="btn-close-mermaid-modal">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="modal-body fancy-modal-body">
+          <div class="evidence-tabs fancy-tabs" style="margin-bottom: 4px;">
+            <button class="tab-btn active" id="tabMermaidExport">Export to Mermaid</button>
+            <button class="tab-btn" id="tabMermaidImport">Import from Mermaid</button>
+          </div>
+
+          <!-- Tab 1: Export Mermaid -->
+          <div id="sectionMermaidExport" style="display: flex; flex-direction: column; gap: 10px;">
+            <div class="modal-toolbar-row">
+              <span class="toolbar-hint">Generated Mermaid Markup (Flowchart, Sequence, or ERD):</span>
+              <button class="action-btn pill-btn emerald-glow" id="btnCopyMermaidCode">
+                <i data-lucide="copy"></i> <span>Copy Mermaid</span>
+              </button>
+            </div>
+            <div class="fancy-code-window">
+              <div class="fancy-window-bar">
+                <div class="fancy-window-dots">
+                  <span class="w-dot dot-red"></span>
+                  <span class="w-dot dot-yellow"></span>
+                  <span class="w-dot dot-green"></span>
+                </div>
+                <span class="fancy-window-title">architecture.mmd</span>
+                <span class="fancy-window-badge">Mermaid v10</span>
+              </div>
+              <textarea id="mermaidExportText" readonly class="fancy-code-editor" spellcheck="false"></textarea>
+            </div>
+          </div>
+
+          <!-- Tab 2: Import Mermaid -->
+          <div id="sectionMermaidImport" style="display: none; flex-direction: column; gap: 10px;">
+            <span class="toolbar-hint">Paste your Mermaid code (e.g. <code>flowchart TD</code>, <code>sequenceDiagram</code>, or <code>graph LR</code>):</span>
+            <div id="mermaidImportError" style="display: none; padding: 10px 14px; border-radius: 8px; background: rgba(250, 82, 82, 0.12); color: #fa5252; font-size: 12px; font-weight: 500; border: 1px solid rgba(250, 82, 82, 0.3);"></div>
+            <div class="fancy-code-window">
+              <div class="fancy-window-bar">
+                <div class="fancy-window-dots">
+                  <span class="w-dot dot-red"></span>
+                  <span class="w-dot dot-yellow"></span>
+                  <span class="w-dot dot-green"></span>
+                </div>
+                <span class="fancy-window-title">input.mmd</span>
+                <span class="fancy-window-badge">Mermaid Input</span>
+              </div>
+              <textarea id="mermaidImportText" class="fancy-code-editor" placeholder="flowchart TD&#10;  A[Client] --> B[API Gateway]&#10;  B --> C[(Postgres DB)]" spellcheck="false"></textarea>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px;">
+              <button class="action-btn pill-btn emerald-glow" id="btnApplyMermaidImport" style="padding: 8px 18px; font-weight: 600;">
+                <i data-lucide="sparkles"></i> <span>Generate Diagram</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  <!-- Datalist for ERD Column Types (Autocomplete + Freeform text) -->
+  <datalist id="commonSqlTypes">
+    <option value="UUID">
+    <option value="VARCHAR(255)">
+    <option value="VARCHAR(100)">
+    <option value="TEXT">
+    <option value="INTEGER">
+    <option value="BIGINT">
+    <option value="SMALLINT">
+    <option value="BOOLEAN">
+    <option value="TIMESTAMP">
+    <option value="TIMESTAMPTZ">
+    <option value="DATE">
+    <option value="TIME">
+    <option value="DECIMAL(10,2)">
+    <option value="NUMERIC">
+    <option value="FLOAT">
+    <option value="DOUBLE PRECISION">
+    <option value="JSONB">
+    <option value="JSON">
+    <option value="SERIAL">
+    <option value="BIGSERIAL">
+    <option value="BYTEA">
+  </datalist>
+
+    <!-- Confirmation Modal (Clear Canvas & Destructive Actions) -->
+    <div class="modal-overlay" id="confirmModal" style="display: none;">
+      <div class="modal-card fancy-modal" style="max-width: 440px;">
+        <div class="modal-header fancy-modal-header">
+          <div class="modal-title-wrap">
+            <div class="modal-badge danger-badge" id="confirmModalBadge"><i data-lucide="alert-triangle"></i> CONFIRMATION</div>
+            <h2 id="confirmModalTitle">Clear Canvas?</h2>
+          </div>
+          <button class="modal-close" id="btn-close-confirm-modal">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="modal-body fancy-modal-body" style="padding-top: 10px;">
+          <p id="confirmModalMessage" style="font-size: 14px; line-height: 1.6; color: var(--text-normal); margin: 0 0 18px 0;">
+            Are you sure you want to clear the entire canvas? All current elements will be removed. You can press <kbd style="background: var(--bg-hover); padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 12px; border: 1px solid var(--border-subtle);">Ctrl+Z</kbd> to undo if needed.
+          </p>
+          <div style="display: flex; justify-content: flex-end; gap: 10px;">
+            <button class="action-btn pill-btn secondary-btn" id="btn-cancel-confirm">Cancel</button>
+            <button class="action-btn pill-btn danger-glow" id="btn-action-confirm" style="background: #e03131; color: white; font-weight: 600;">
+              <i data-lucide="trash-2"></i> <span id="confirmActionLabel">Clear Canvas</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Keyboard Shortcuts Cheat Sheet Modal (?) -->
+    <div class="modal-overlay" id="shortcutsModal" style="display: none;">
+      <div class="modal-card fancy-modal" style="max-width: 660px;">
+        <div class="modal-header fancy-modal-header">
+          <div class="modal-title-wrap">
+            <div class="modal-badge primary-badge"><i data-lucide="command"></i> CHEAT SHEET</div>
+            <h2>Keyboard Shortcuts & Gestures</h2>
+          </div>
+          <button class="modal-close" id="btn-close-shortcuts-modal">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="modal-body fancy-modal-body" style="max-height: 70vh; overflow-y: auto;">
+          <div class="shortcuts-grid">
+            <!-- Section 1: Navigation & Canvas -->
+            <div class="shortcuts-section">
+              <h3 class="shortcuts-sec-title">🧭 Navigation & Canvas</h3>
+              <div class="shortcut-row">
+                <span class="shortcut-desc">Pan Canvas</span>
+                <span class="shortcut-keys"><kbd>Space</kbd> + Drag / <kbd>H</kbd></span>
+              </div>
+              <div class="shortcut-row">
+                <span class="shortcut-desc">Zoom In / Out</span>
+                <span class="shortcut-keys"><kbd>Ctrl</kbd> + Wheel / <kbd>+</kbd> <kbd>-</kbd></span>
+              </div>
+              <div class="shortcut-row">
+                <span class="shortcut-desc">Horizontal Scroll</span>
+                <span class="shortcut-keys"><kbd>Shift</kbd> + Wheel</span>
+              </div>
+              <div class="shortcut-row">
+                <span class="shortcut-desc">Toggle Grid</span>
+                <span class="shortcut-keys"><kbd>G</kbd></span>
+              </div>
+            </div>
+
+            <!-- Section 2: Architecture & Presentation -->
+            <div class="shortcuts-section">
+              <h3 class="shortcuts-sec-title">🏛️ Architecture & System Design</h3>
+              <div class="shortcut-row">
+                <span class="shortcut-desc">Toggle Minimap</span>
+                <span class="shortcut-keys"><kbd>M</kbd></span>
+              </div>
+              <div class="shortcut-row">
+                <span class="shortcut-desc">Presentation Mode</span>
+                <span class="shortcut-keys"><kbd>F</kbd> / <kbd>Esc</kbd></span>
+              </div>
+              <div class="shortcut-row">
+                <span class="shortcut-desc">System Telemetry & SPOFs</span>
+                <span class="shortcut-keys"><kbd>Alt</kbd> + <kbd>M</kbd></span>
+              </div>
+              <div class="shortcut-row">
+                <span class="shortcut-desc">Shortcuts Help</span>
+                <span class="shortcut-keys"><kbd>?</kbd></span>
+              </div>
+            </div>
+
+            <!-- Section 3: Tools -->
+            <div class="shortcuts-section">
+              <h3 class="shortcuts-sec-title">✏️ Drawing & Component Tools</h3>
+              <div class="shortcut-row">
+                <span class="shortcut-desc">Selection Tool</span>
+                <span class="shortcut-keys"><kbd>V</kbd> or <kbd>1</kbd></span>
+              </div>
+              <div class="shortcut-row">
+                <span class="shortcut-desc">Rectangle / Card</span>
+                <span class="shortcut-keys"><kbd>R</kbd> or <kbd>2</kbd></span>
+              </div>
+              <div class="shortcut-row">
+                <span class="shortcut-desc">Decision Diamond ◇</span>
+                <span class="shortcut-keys"><kbd>D</kbd> or <kbd>3</kbd></span>
+              </div>
+              <div class="shortcut-row">
+                <span class="shortcut-desc">Arrow Connector</span>
+                <span class="shortcut-keys"><kbd>A</kbd> or <kbd>5</kbd></span>
+              </div>
+              <div class="shortcut-row">
+                <span class="shortcut-desc">Text / Inline Editor</span>
+                <span class="shortcut-keys"><kbd>T</kbd> or <kbd>8</kbd></span>
+              </div>
+              <div class="shortcut-row">
+                <span class="shortcut-desc">Architecture Node</span>
+                <span class="shortcut-keys"><kbd>N</kbd> or <kbd>0</kbd></span>
+              </div>
+              <div class="shortcut-row">
+                <span class="shortcut-desc">Insert Image</span>
+                <span class="shortcut-keys"><kbd>I</kbd></span>
+              </div>
+            </div>
+
+            <!-- Section 4: Editing & Clipboard -->
+            <div class="shortcuts-section">
+              <h3 class="shortcuts-sec-title">⚡ Editing & History</h3>
+              <div class="shortcut-row">
+                <span class="shortcut-desc">Quick Save (Export SVG)</span>
+                <span class="shortcut-keys"><kbd>Ctrl+S</kbd></span>
+              </div>
+              <div class="shortcut-row">
+                <span class="shortcut-desc">Undo / Redo</span>
+                <span class="shortcut-keys"><kbd>Ctrl+Z</kbd> / <kbd>Ctrl+Y</kbd></span>
+              </div>
+              <div class="shortcut-row">
+                <span class="shortcut-desc">Copy / Cut / Paste</span>
+                <span class="shortcut-keys"><kbd>Ctrl+C</kbd> / <kbd>X</kbd> / <kbd>V</kbd></span>
+              </div>
+              <div class="shortcut-row">
+                <span class="shortcut-desc">Select All</span>
+                <span class="shortcut-keys"><kbd>Ctrl+A</kbd></span>
+              </div>
+              <div class="shortcut-row">
+                <span class="shortcut-desc">Delete Element</span>
+                <span class="shortcut-keys"><kbd>Del</kbd> / <kbd>Backspace</kbd></span>
+              </div>
+              <div class="shortcut-row">
+                <span class="shortcut-desc">Nudge Position</span>
+                <span class="shortcut-keys"><kbd>Arrows</kbd> (<kbd>Shift</kbd> 10px)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Unified Toast Notification Container -->
+    <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
