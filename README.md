@@ -406,27 +406,32 @@ generateAllTemplateGifs()
 
 ## ⚠️ Known Limitations
 
-ExcaliCraft is actively developed. Please review our current functional boundaries before relying on specific edge cases:
+ExcaliCraft is actively developed. Please review our current functional boundaries:
 
-- **Critical Path Latency**: Path latency accumulation currently computes the first-discovered traversal route; a full DAG longest-path DFS upgrade is actively in progress.
-- **Capacity Saturation Defaults**: If a service node's max capacity is not explicitly defined in properties, it defaults to 20,000 QPS (5,000 for databases). Explicit capacity values are recommended for accurate saturation alerts.
-- **SPOF Detection Heuristics**: Undirected Tarjan articulation point analysis uses title and badge heuristics to differentiate entrypoints and databases; mark replica/standby nodes or use the `isReplicated` attribute to suppress intentional single points.
-- **Mermaid Import Scope**: Currently supports core Flowcharts, Sequence diagrams, and C4 syntax. Chained edges (`A --> B --> C`), `subgraph` scopes, and `stateDiagram-v2` are being expanded.
-- **SQL DDL**: ERD tables support full export to PostgreSQL, MySQL, and ANSI SQL. Reverse import (`CREATE TABLE` -> ERD) is planned.
-- **Excalidraw Ingestion**: Ingests standard `.excalidraw` JSON and compressed SVG payloads; full round-trip fidelity for every proprietary third-party tool extension is not guaranteed.
+- **SQL Reverse Import**: ERD tables support full export to PostgreSQL, MySQL, and ANSI SQL. Reverse parsing (`CREATE TABLE` -> ERD) is currently scheduled for Sprint 8.
+- **First-Class Note Cards**: Freeform text annotations are fully supported via the Text tool (`T`); dedicated markdown note cards and sticky notes are in active development.
+- **Directed Dominator Tree SPOF**: Current SPOF analysis uses Tarjan's articulation points with explicit `role` and `isReplicated` overrides; directed flow-dominator trees are planned for advanced pipeline topologies.
+- **RTL Typography**: Right-to-left (Arabic/Hebrew) bidirectional text flow on canvas is on the active roadmap.
+- **Excalidraw Ingestion Scope**: Ingests standard `.excalidraw` JSON and compressed SVG payloads with high fidelity; proprietary third-party canvas extensions outside standard Excalidraw types are sanitized to standard shapes.
 
 ---
 
-## 🗺️ Roadmap
+## 🗺️ Roadmap & Sprint Milestones
 
-1. **Critical-Path Latency Engine**: Longest-path topological DAG traversal for accurate multi-branch bottleneck latency calculation.
-2. **SQL DDL → ERD Reverse Parser**: Drag-and-drop `.sql` schema files to automatically generate interactive table cards with PK/FK links.
-3. **Advanced Mermaid Parser**: Support for chained edges (`A --> B --> C`), nested `subgraph` boundaries, and non-blocking line-by-line syntax warning recovery.
-4. **First-Class Markdown Notes**: Rich architectural documentation cards and per-element sticky notes rendered on canvas and included in exports.
-5. **Explicit Node Archetypes & Roles**: Formal `role` properties (gateway, worker, datastore, cache) and `isReplicated` toggles to replace title heuristics.
-6. **Directed Dominator Tree SPOF**: Flow-directed dominator tree analysis with real-time affected downstream path highlighting.
-7. **Arabic & RTL Canvas Typography**: Native bidirectional text layout and font rendering for right-to-left documentation.
-8. **Automated CI/CD Verification**: GitHub Actions workflow running tests and production builds on every pull request.
+### Completed in Sprint 7 (v1.1 Hardening) 🟢
+- [x] **Critical-Path Latency Engine**: Rewrote path traversal to DFS longest-path algorithm with cycle detection and depth bounds; accurately calculates multi-branch bottlenecks.
+- [x] **Mermaid Import Hardening**: Full support for chained edges (`A --> B --> C`), `subgraph ... end` group boundaries, `stateDiagram-v2`, and non-blocking per-line warning recovery.
+- [x] **Explicit Node Roles & Replicas**: Added native `role` (`entry`, `service`, `datastore`, `queue`, `cache`) and `isReplicated` attributes to eliminate title-based SPOF false positives.
+- [x] **Capacity Saturation Visibility**: Unconfigured nodes clearly indicate missing thresholds; templates updated with tuned capacities demonstrating live 175% saturation alerts.
+- [x] **Developer Server Security Hardening**: Secured `/api/save-gif` dev endpoint with `path.basename()` traversal stripping, `.gif`/`.png` extension allowlist, and 20MB streaming payload limit.
+- [x] **Automated CI/CD & Unified Test Runner**: Unified `npm test` script executing 11 test suites with 100% pass rate; GitHub Actions CI workflow on every push/PR.
+- [x] **Open Source Licensing**: Standard MIT License added to repository root.
+
+### Upcoming Milestones (Sprint 8+) 🗓️
+- [ ] **SQL DDL → ERD Reverse Parser**: Drag-and-drop `.sql` schema files (`CREATE TABLE`) to automatically scaffold interactive table cards with PK/FK links.
+- [ ] **First-Class Markdown Notes**: Dedicated rich architectural documentation cards and per-element sticky notes rendered on canvas and included in exports.
+- [ ] **Directed Dominator Tree SPOF**: Flow-directed dominator tree analysis with real-time affected downstream path highlighting.
+- [ ] **Arabic & RTL Canvas Typography**: Native bidirectional text layout and font rendering for right-to-left architectural documentation.
 
 ---
 
