@@ -3,7 +3,7 @@
 **Project**: ExcaliDraw Pro (ExcaliCraft)  
 **Location**: `doc/issues.md`  
 **Last Updated**: October 29, 2026  
-**Status Overview**: 53 Tracked Issues | 53 Resolved (100%) — Sprints 1–8 Completed 🟢
+**Status Overview**: 55 Tracked Issues | 55 Resolved (100%) — Sprints 1–8 & Hotfixes Completed 🟢
 
 ---
 
@@ -83,6 +83,8 @@ Here is the exact correlation:
 | **ISSUE-51** | Modeling / Docs | First-Class Markdown Notes (Architecture Decision Cards & Canvas Sticky Callouts) | Medium | 🟢 Resolved | Verified (TC-S8-NOTE-01..03, SEC-S8-02, ADR & Sticky cards, SVG/Canvas export) |
 | **ISSUE-52** | Architecture / Reliability | Flow-Directed Dominator Tree SPOF & Downstream Blast Radius Highlighting | High | 🟢 Resolved | Verified (TC-S8-DOM-01..03, SEC-S8-03, iterative dataflow, blast radius badge & halo) |
 | **ISSUE-53** | Canvas / UX & Typography | Authentic Excalidraw Text Tool & Input UX ('A' Icon, Frameless Text, Non-Enter Commit) | High | 🟢 Resolved | Verified (TC-S8-TXT-01..04, SEC-S8-04, letter 'A' icon, borderless floating textarea) |
+| **ISSUE-54** | Configuration / Server | Dev & Preview Server Port Mismatch (Enforce Port 5174 in vite.config.js to Match README) | Medium | 🟢 Resolved | Verified (TC-HF-PORT-01..02, server.port: 5174 & preview.port: 5174 in vite.config.js) |
+| **ISSUE-55** | Onboarding / UX | Welcome Page / Modal Missing on Server Start (Align with Attached Visual Design & 4 Starters) | High | 🟢 Resolved | Verified (TC-HF-WLC-01, TC-HF-CSS-01, TC-HF-JS-01, 4 template cards, blank canvas action) |
 
 ---
 
@@ -909,4 +911,39 @@ Here is the exact correlation:
   - In [src/main.js](file:///c:/Users/ahmed/.gemini/antigravity/scratch/excalicraft/src/main.js): implemented `this.activeInlineTextCommit()` invoked immediately in `onPointerDown` when clicking anywhere on canvas, synchronously committing text before processing tool clicks. Allowed Enter to create newlines in multiline notes, while Escape, Ctrl+Enter, or blur commits immediately without loss.
 - **Status**: 🟢 Resolved
 - **Verification**: Verified via test cases `TC-S8-TXT-01`, `TC-S8-TXT-02`, `TC-S8-TXT-03`, `TC-S8-TXT-04`, and security test `SEC-S8-04` in `tests/sprint8_test.js`.
+
+---
+
+### ISSUE-54: Dev & Preview Server Port Mismatch (Enforce Port 5174 in vite.config.js to Match README)
+- **Reported**: When users clone the repository and execute `npm run dev`, Vite bound to default port 5173 on clean machines, whereas the root [README.md](file:///c:/Users/ahmed/.gemini/antigravity/scratch/excalicraft/README.md) consistently instructs users to visit `http://localhost:5174/`.
+- **Root Cause**: [vite.config.js](file:///c:/Users/ahmed/.gemini/antigravity/scratch/excalicraft/vite.config.js) omitted `server` and `preview` port options, delegating port selection to Vite's default 5173.
+- **Resolution**:
+  - Explicitly configured `server: { port: 5174, strictPort: false, host: true }` and `preview: { port: 5174, host: true }` in [vite.config.js](file:///c:/Users/ahmed/.gemini/antigravity/scratch/excalicraft/vite.config.js).
+  - Ensured fresh clones and runs of `npm run dev` or `npm run preview` bind directly to port 5174 as documented in [README.md](file:///c:/Users/ahmed/.gemini/antigravity/scratch/excalicraft/README.md).
+- **Status**: 🟢 Resolved
+- **Verification**: Verified via automated test cases `TC-HF-PORT-01` and `TC-HF-PORT-02` in `tests/hotfix_test.js`.
+
+---
+
+### ISSUE-55: Welcome Page / Modal Missing on Server Start (Align with Attached Visual Design & 4 Starter Templates)
+- **Reported**: Feature request & user onboarding fix. When cloning and starting the server, instead of displaying the starter Welcome Modal dialog from the visual design specification, the canvas loaded 4 legacy hardcoded demo shapes, causing the onboarding modal to remain hidden (`this.elements.length !== 0`). In addition, the existing welcome card DOM and CSS used system emojis (`☁️`, `🏛️`, `🗄️`, `⚡`) instead of authentic vector icons and lacked the exact typography, pill badge, and button styling from the design specification.
+- **Root Cause**:
+  1. `App.constructor` in [src/main.js](file:///c:/Users/ahmed/.gemini/antigravity/scratch/excalicraft/src/main.js) fell back to `createWelcomeElements()` when no autosave was present in `localStorage`, populating the canvas with demo shapes and suppressing `updateEmptyState()`.
+  2. [index.html](file:///c:/Users/ahmed/.gemini/antigravity/scratch/excalicraft/index.html) and [src/style.css](file:///c:/Users/ahmed/.gemini/antigravity/scratch/excalicraft/src/style.css) had an early prototype draft of the card with emojis and small dimensions.
+- **Resolution**:
+  - Updated [src/main.js](file:///c:/Users/ahmed/.gemini/antigravity/scratch/excalicraft/src/main.js) to initialize fresh sessions with `initialElements = []`, enabling `updateEmptyState()` to immediately display the Welcome Modal over the canvas on initial launch.
+  - Re-architected `#welcomeOnboarding` in [index.html](file:///c:/Users/ahmed/.gemini/antigravity/scratch/excalicraft/index.html) to match the visual design:
+    - **Header Badge**: Centered sky blue pill (`#e0f2fe`) with Lucide `sparkles` icon and uppercase `WELCOME TO EXCALICRAFT`.
+    - **Typography**: Main heading `Expressive System Architecture & Diagramming` with subtitle `Start sketching freely, or load a production-ready starter template:`.
+    - **2x2 Grid of Starter Templates**:
+      1. `Microservices Cloud` (`API Gateway, Redis & Kafka`) with lavender cloud vector icon (`data-onboarding-template="microservices"`).
+      2. `C4 Container Model` (`SPA, API App & PostgreSQL`) with classic slate temple pillars/landmark vector icon (`data-onboarding-template="c4-container"`).
+      3. `Relational ERD` (`Users, Orders & Foreign Keys`) with purple database server rack icon (`data-onboarding-template="erd"`).
+      4. `Flash Sale Scale` (`50k QPS, Telemetry & SPOF`) with vibrant orange lightning bolt icon (`data-onboarding-template="flash-sale"`).
+    - **Footer Action**: Rounded pill button `Start with Blank Canvas` with Lucide `pencil` icon (`#btn-onboarding-blank`).
+  - Implemented responsive, pixel-perfect CSS in [src/style.css](file:///c:/Users/ahmed/.gemini/antigravity/scratch/excalicraft/src/style.css) with 24px rounded corners, elevation drop-shadow (`box-shadow: 0 24px 64px -12px rgba(0, 0, 0, 0.14)`), smooth hover physics, and full dark theme support (`body.theme-dark`).
+  - Added lifecycle state handling in [src/main.js](file:///c:/Users/ahmed/.gemini/antigravity/scratch/excalicraft/src/main.js) (`_dismissedWelcome`) so clicking "Start with Blank Canvas" dismisses the modal, loading a template dismisses and auto-fits zoom, and clearing canvas re-surfaces the welcome card.
+- **Status**: 🟢 Resolved
+- **Verification**: Verified via automated test cases `TC-HF-WLC-01`, `TC-HF-CSS-01`, and `TC-HF-JS-01` in `tests/hotfix_test.js`.
+
 

@@ -22,7 +22,8 @@ const testSuites = [
   'image_ctrls_test.js',
   'sprint7_test.js',
   'sprint7_security_test.js',
-  'sprint8_test.js'
+  'sprint8_test.js',
+  'hotfix_test.js'
 ];
 
 console.log('================================================================');

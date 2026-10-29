@@ -204,7 +204,7 @@ class App {
       this.canvasBackground = saved.canvasBackground || '#ffffff';
       this._restoredFromAutosave = true;
     } else {
-      initialElements = createWelcomeElements();
+      initialElements = [];
       this.scrollX = 40;
       this.scrollY = 40;
       this.zoom = 1.0;
@@ -212,6 +212,7 @@ class App {
       this.canvasBackground = '#ffffff';
     }
 
+    this._dismissedWelcome = false;
     this.history = new HistoryManager(initialElements);
 
     this.showGrid = true;
@@ -453,12 +454,12 @@ class App {
   }
 
   // ==========================================================================
-  // First-Time User Onboarding & Empty State (ISSUE-14)
+  // First-Time User Onboarding & Empty State (ISSUE-14 & ISSUE-55)
   // ==========================================================================
   updateEmptyState() {
     const card = document.getElementById('welcomeOnboarding');
     if (!card) return;
-    if (this.elements.length === 0) {
+    if (this.elements.length === 0 && !this._dismissedWelcome) {
       card.style.display = 'block';
       createIcons({ icons });
     } else {
@@ -472,6 +473,7 @@ class App {
         const tplKey = btn.dataset.onboardingTemplate;
         const newElements = getTemplateElements(tplKey);
         if (newElements && newElements.length > 0) {
+          this._dismissedWelcome = true;
           this.elements = newElements;
           this.selectedElementIds.clear();
           this.history.record(this.elements);
@@ -493,6 +495,7 @@ class App {
     });
 
     document.getElementById('btn-onboarding-blank')?.addEventListener('click', () => {
+      this._dismissedWelcome = true;
       const card = document.getElementById('welcomeOnboarding');
       if (card) card.style.display = 'none';
       this.showToast('Started blank canvas. Select a tool to begin sketching!', 'info', 2500);
@@ -1503,6 +1506,7 @@ class App {
           this.history.record(this.elements);
           this.scheduleAutoSave();
           this.updateInspectorUI();
+          this._dismissedWelcome = false;
           this.updateEmptyState();
           this.render();
           this.showToast('Canvas cleared. Press Ctrl+Z to undo.', 'info', 3500);
@@ -4385,6 +4389,7 @@ class App {
       this.elements = prev;
       this.selectedElementIds.clear();
       this.updateInspectorUI();
+      this.updateEmptyState();
       this.render();
     }
   }
@@ -4395,6 +4400,7 @@ class App {
       this.elements = next;
       this.selectedElementIds.clear();
       this.updateInspectorUI();
+      this.updateEmptyState();
       this.render();
     }
   }

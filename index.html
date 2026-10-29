@@ -315,43 +315,54 @@
     <main class="canvas-viewport" id="viewport">
       <canvas id="drawingCanvas"></canvas>
 
-      <!-- Welcome / Empty State Onboarding Card -->
+      <!-- Welcome / Empty State Onboarding Card (ISSUE-14 & ISSUE-55) -->
       <div id="welcomeOnboarding" class="welcome-onboarding-card" style="display: none;">
-        <div class="onboarding-badge"><i data-lucide="sparkles"></i> Welcome to ExcaliCraft</div>
-        <h2 class="onboarding-title">Expressive System Architecture & Diagramming</h2>
+        <div class="onboarding-badge">
+          <i data-lucide="sparkles" class="welcome-sparkle-icon"></i>
+          <span>WELCOME TO EXCALICRAFT</span>
+        </div>
+        <h2 class="onboarding-title">Expressive System Architecture &amp; Diagramming</h2>
         <p class="onboarding-sub">Start sketching freely, or load a production-ready starter template:</p>
         <div class="onboarding-pills">
-          <button class="onboarding-pill" data-onboarding-template="microservices">
-            <span class="pill-emoji">☁️</span>
+          <button class="onboarding-pill" data-onboarding-template="microservices" id="welcome-tpl-microservices">
+            <div class="pill-icon-wrap icon-cloud">
+              <i data-lucide="cloud"></i>
+            </div>
             <div class="pill-meta">
               <strong>Microservices Cloud</strong>
-              <span>API Gateway, Redis & Kafka</span>
+              <span>API Gateway, Redis &amp; Kafka</span>
             </div>
           </button>
-          <button class="onboarding-pill" data-onboarding-template="c4-container">
-            <span class="pill-emoji">🏛️</span>
+          <button class="onboarding-pill" data-onboarding-template="c4-container" id="welcome-tpl-c4">
+            <div class="pill-icon-wrap icon-landmark">
+              <i data-lucide="landmark"></i>
+            </div>
             <div class="pill-meta">
               <strong>C4 Container Model</strong>
-              <span>SPA, API App & PostgreSQL</span>
+              <span>SPA, API App &amp; PostgreSQL</span>
             </div>
           </button>
-          <button class="onboarding-pill" data-onboarding-template="erd">
-            <span class="pill-emoji">🗄️</span>
+          <button class="onboarding-pill" data-onboarding-template="erd" id="welcome-tpl-erd">
+            <div class="pill-icon-wrap icon-database">
+              <i data-lucide="database"></i>
+            </div>
             <div class="pill-meta">
               <strong>Relational ERD</strong>
-              <span>Users, Orders & Foreign Keys</span>
+              <span>Users, Orders &amp; Foreign Keys</span>
             </div>
           </button>
-          <button class="onboarding-pill" data-onboarding-template="flash-sale">
-            <span class="pill-emoji">⚡</span>
+          <button class="onboarding-pill" data-onboarding-template="flash-sale" id="welcome-tpl-flash-sale">
+            <div class="pill-icon-wrap icon-zap">
+              <i data-lucide="zap"></i>
+            </div>
             <div class="pill-meta">
               <strong>Flash Sale Scale</strong>
-              <span>50k QPS, Telemetry & SPOF</span>
+              <span>50k QPS, Telemetry &amp; SPOF</span>
             </div>
           </button>
         </div>
         <div class="onboarding-footer">
-          <button class="action-btn pill-btn secondary-btn" id="btn-onboarding-blank">
+          <button class="welcome-blank-btn" id="btn-onboarding-blank">
             <i data-lucide="pencil"></i> <span>Start with Blank Canvas</span>
           </button>
         </div>
