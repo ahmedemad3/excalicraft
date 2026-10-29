@@ -4656,6 +4656,365 @@ export function getC4ContextDiagramTemplate() {
   return elements;
 }
 
+/**
+ * Sprint 8: Microservices Architecture with ADR Decision Cards & Component Sticky Notes
+ */
+export function getArchitectureWithNotesTemplate() {
+  const elements = [];
+
+  const vpcId = generateId();
+  const clientId = generateId();
+  const cdnId = generateId();
+  const gatewayId = generateId();
+  const ordersSvcId = generateId();
+  const paymentsSvcId = generateId();
+  const kafkaId = generateId();
+  const dbId = generateId();
+
+  // 1. Cloud Boundary
+  elements.push({
+    id: vpcId,
+    type: 'group-boundary',
+    x: 270,
+    y: 100,
+    width: 1140,
+    height: 620,
+    title: 'AWS Production (us-east-1) · VPC 10.0.0.0/16',
+    strokeColor: '#339af0',
+    backgroundColor: 'rgba(231, 245, 255, 0.25)',
+    strokeStyle: 'dashed',
+    strokeWidth: 2,
+    seed: generateSeed()
+  });
+
+  // 2. Client Node
+  elements.push({
+    id: clientId,
+    type: 'node',
+    x: 40,
+    y: 270,
+    width: 190,
+    height: 80,
+    title: 'Web & Mobile Client',
+    subtitle: 'Next.js 15 · iOS · Android',
+    badge: 'CLIENT',
+    icon: 'Smartphone',
+    themeColor: '#495057',
+    backgroundColor: '#ffffff',
+    cardStyle: 'modern',
+    role: 'entry',
+    qps: 12000,
+    latency: 5,
+    seed: generateSeed()
+  });
+
+  // 3. CloudFront Edge & WAF
+  elements.push({
+    id: cdnId,
+    type: 'node',
+    x: 310,
+    y: 270,
+    width: 200,
+    height: 80,
+    title: 'CloudFront & WAF',
+    subtitle: 'Edge Shield · TLS 1.3',
+    badge: 'CDN',
+    icon: 'Shield',
+    themeColor: '#ff9900',
+    backgroundColor: '#ffffff',
+    cardStyle: 'modern',
+    role: 'service',
+    qps: 12000,
+    latency: 12,
+    seed: generateSeed()
+  });
+
+  // 4. API Gateway
+  elements.push({
+    id: gatewayId,
+    type: 'node',
+    x: 570,
+    y: 270,
+    width: 210,
+    height: 80,
+    title: 'Envoy API Gateway',
+    subtitle: 'JWT · Rate Limiter · Ingress',
+    badge: 'GATEWAY',
+    icon: 'Network',
+    themeColor: '#1971c2',
+    backgroundColor: '#ffffff',
+    cardStyle: 'modern',
+    role: 'service',
+    qps: 12000,
+    capacity: 20000,
+    latency: 8,
+    seed: generateSeed()
+  });
+
+  // 5. Sticky Note: Gateway Policies (Attached to API Gateway)
+  elements.push({
+    id: generateId(),
+    type: 'note',
+    cardStyle: 'sticky',
+    x: 570,
+    y: 110,
+    width: 220,
+    height: 135,
+    title: 'Gateway Routing Specs',
+    content: '# Edge Protection\n- [x] TLS 1.3 SNI validation\n- [x] JWT claims verification\n- [x] Token bucket: 15,000 req/s\n- [ ] Geo-blocking for legacy APIs',
+    themeColor: '#fff9db',
+    backgroundColor: '#fff9db',
+    strokeColor: '#fab005',
+    seed: generateSeed()
+  });
+
+  // 6. Orders Service
+  elements.push({
+    id: ordersSvcId,
+    type: 'node',
+    x: 840,
+    y: 190,
+    width: 210,
+    height: 80,
+    title: 'Orders Service',
+    subtitle: 'Go 1.23 · gRPC · Docker',
+    badge: 'MICROSERVICE',
+    icon: 'Server',
+    themeColor: '#2b8a3e',
+    backgroundColor: '#ffffff',
+    cardStyle: 'modern',
+    role: 'service',
+    qps: 8500,
+    capacity: 15000,
+    latency: 18,
+    seed: generateSeed()
+  });
+
+  // 7. Payments Service
+  elements.push({
+    id: paymentsSvcId,
+    type: 'node',
+    x: 840,
+    y: 330,
+    width: 210,
+    height: 80,
+    title: 'Payments Service',
+    subtitle: 'Rust · Tokio · Stripe API',
+    badge: 'MICROSERVICE',
+    icon: 'CreditCard',
+    themeColor: '#e03131',
+    backgroundColor: '#ffffff',
+    cardStyle: 'modern',
+    role: 'service',
+    qps: 3500,
+    capacity: 10000,
+    latency: 25,
+    seed: generateSeed()
+  });
+
+  // 8. Event Bus (Kafka)
+  elements.push({
+    id: kafkaId,
+    type: 'node',
+    x: 1120,
+    y: 190,
+    width: 210,
+    height: 80,
+    title: 'Apache Kafka Bus',
+    subtitle: 'orders.events · 32 partitions',
+    badge: 'EVENT STREAM',
+    icon: 'Layers',
+    themeColor: '#e8590c',
+    backgroundColor: '#ffffff',
+    cardStyle: 'modern',
+    role: 'queue',
+    qps: 8500,
+    capacity: 50000,
+    latency: 4,
+    seed: generateSeed()
+  });
+
+  // 9. Sticky Note: Event Streaming Specs (Attached to Kafka)
+  elements.push({
+    id: generateId(),
+    type: 'note',
+    cardStyle: 'sticky',
+    x: 1120,
+    y: 40,
+    width: 220,
+    height: 125,
+    title: 'Kafka Topic Policy',
+    content: '# Partition Key Spec\n- Key: `order_id` (murmur3)\n- Retention: 7 days immutable\n- Min In-Sync Replicas: 2\n- Compression: zstd',
+    themeColor: '#ffe8cc',
+    backgroundColor: '#ffe8cc',
+    strokeColor: '#fd7e14',
+    seed: generateSeed()
+  });
+
+  // 10. Database Cluster (Aurora PostgreSQL)
+  elements.push({
+    id: dbId,
+    type: 'node',
+    x: 1120,
+    y: 320,
+    width: 210,
+    height: 85,
+    title: 'Orders Aurora DB',
+    subtitle: 'PostgreSQL 16 · Multi-AZ',
+    badge: 'DATASTORE',
+    icon: 'Database',
+    themeColor: '#1098ad',
+    backgroundColor: '#ffffff',
+    cardStyle: 'modern',
+    role: 'datastore',
+    isReplicated: true,
+    qps: 8500,
+    capacity: 18000,
+    latency: 6,
+    seed: generateSeed()
+  });
+
+  // 11. Sticky Note: Database Specs (Attached to DB)
+  elements.push({
+    id: generateId(),
+    type: 'note',
+    cardStyle: 'sticky',
+    x: 1120,
+    y: 430,
+    width: 220,
+    height: 125,
+    title: 'Storage & Cluster Specs',
+    content: '# PostgreSQL Cluster\n- Primary: db.r6g.2xlarge\n- Read Replicas: 3x Multi-AZ\n- Pool: pgBouncer (max 400)\n- Auto-failover: < 15s RTO',
+    themeColor: '#e3fafc',
+    backgroundColor: '#e3fafc',
+    strokeColor: '#15aabf',
+    seed: generateSeed()
+  });
+
+  // 12. First-Class Architecture Decision Record (ADR) Card
+  elements.push({
+    id: generateId(),
+    type: 'note',
+    cardStyle: 'adr',
+    status: 'ACCEPTED',
+    x: 310,
+    y: 420,
+    width: 470,
+    height: 270,
+    title: 'ADR-008: CQRS & Transactional Outbox Pattern',
+    content: '## Context\nPeak checkout spikes create database row-lock contention and write-thread starvation.\n\n## Decision\nAdopt CQRS with Transactional Outbox pattern. Orders service commits to local DB; CDC relays events to Kafka for async read projections.\n\n## Consequences\n- 10x throughput scaling (zero 2PC distributed locks)\n- Query models isolated from primary write bottleneck\n- Downstream consumers require idempotent processing',
+    themeColor: '#2b8a3e',
+    backgroundColor: '#ffffff',
+    strokeColor: '#2b8a3e',
+    seed: generateSeed()
+  });
+
+  // 13. Relational / Flow Arrows
+  // Client -> CloudFront
+  elements.push({
+    id: generateId(),
+    type: 'arrow',
+    x: 230,
+    y: 310,
+    width: 80,
+    height: 0,
+    label: 'HTTPS · 12k QPS',
+    startBinding: { elementId: clientId },
+    endBinding: { elementId: cdnId },
+    direction: 'forward',
+    strokeColor: '#495057',
+    strokeWidth: 2,
+    seed: generateSeed()
+  });
+
+  // CloudFront -> Gateway
+  elements.push({
+    id: generateId(),
+    type: 'arrow',
+    x: 510,
+    y: 310,
+    width: 60,
+    height: 0,
+    label: 'gRPC · 12k QPS',
+    startBinding: { elementId: cdnId },
+    endBinding: { elementId: gatewayId },
+    direction: 'forward',
+    strokeColor: '#ff9900',
+    strokeWidth: 2,
+    seed: generateSeed()
+  });
+
+  // Gateway -> Orders
+  elements.push({
+    id: generateId(),
+    type: 'arrow',
+    x: 780,
+    y: 290,
+    width: 60,
+    height: -60,
+    label: '8.5k QPS',
+    startBinding: { elementId: gatewayId },
+    endBinding: { elementId: ordersSvcId },
+    direction: 'forward',
+    strokeColor: '#1971c2',
+    strokeWidth: 2,
+    seed: generateSeed()
+  });
+
+  // Gateway -> Payments
+  elements.push({
+    id: generateId(),
+    type: 'arrow',
+    x: 780,
+    y: 330,
+    width: 60,
+    height: 40,
+    label: '3.5k QPS',
+    startBinding: { elementId: gatewayId },
+    endBinding: { elementId: paymentsSvcId },
+    direction: 'forward',
+    strokeColor: '#1971c2',
+    strokeWidth: 2,
+    seed: generateSeed()
+  });
+
+  // Orders -> Kafka
+  elements.push({
+    id: generateId(),
+    type: 'arrow',
+    x: 1050,
+    y: 230,
+    width: 70,
+    height: 0,
+    label: 'Publish Event',
+    startBinding: { elementId: ordersSvcId },
+    endBinding: { elementId: kafkaId },
+    direction: 'forward',
+    strokeColor: '#2b8a3e',
+    strokeWidth: 2,
+    seed: generateSeed()
+  });
+
+  // Orders -> DB
+  elements.push({
+    id: generateId(),
+    type: 'arrow',
+    x: 1050,
+    y: 250,
+    width: 70,
+    height: 90,
+    label: 'SQL Write',
+    startBinding: { elementId: ordersSvcId },
+    endBinding: { elementId: dbId },
+    direction: 'forward',
+    strokeColor: '#2b8a3e',
+    strokeWidth: 2,
+    seed: generateSeed()
+  });
+
+  return elements;
+}
+
 // ============================================================================
 // Master Template Dispatcher
 // ============================================================================
@@ -4665,6 +5024,12 @@ export function getC4ContextDiagramTemplate() {
  */
 export function getTemplateElements(templateKey) {
   switch (templateKey) {
+    // Sprint 8: Architecture Decision Records (ADR) & Markdown Sticky Notes
+    case 'architecture-notes':
+    case 'adr-notes':
+    case 'notes-adr':
+      return getArchitectureWithNotesTemplate();
+
     // C4 Architecture Models
     case 'c4':
     case 'c4-model':

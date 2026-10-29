@@ -4864,7 +4864,32 @@ class App {
 window.addEventListener('DOMContentLoaded', () => {
   window.app = new App();
 
-  if (new URLSearchParams(window.location.search).get('autoSaveGifs') === 'true') {
+  const urlParams = new URLSearchParams(window.location.search);
+  const tplParam = urlParams.get('template');
+  if (tplParam) {
+    const tplElements = getTemplateElements(tplParam);
+    if (tplElements && tplElements.length > 0) {
+      window.app.elements = tplElements;
+      setTimeout(() => {
+        window.app.calculateZoomToFit();
+        window.app.render();
+      }, 100);
+    }
+  }
+
+  if (urlParams.get('sprint8') === 'true') {
+    setTimeout(async () => {
+      console.log('[AutoSprint8] Auto-generating Sprint 8 assets...');
+      try {
+        await window.generateSprint8Screenshots();
+        console.log('[AutoSprint8] Finished generating Sprint 8 assets successfully!');
+      } catch (err) {
+        console.error('[AutoSprint8] Failed:', err);
+      }
+    }, 600);
+  }
+
+  if (urlParams.get('autoSaveGifs') === 'true') {
     setTimeout(async () => {
       console.log('[AutoGIF] Starting automated GIF generation...');
       const banner = document.createElement('div');
@@ -4905,7 +4930,8 @@ window.generateAllTemplateGifs = async function() {
     { key: 'erd', filename: 'database_schema_erd.gif' },
     { key: 'state-machine', filename: 'state_machine_workflow.gif' },
     { key: 'logic-flowchart', filename: 'logic_flowchart_decision.gif' },
-    { key: 'activity', filename: 'business_activity_process.gif' }
+    { key: 'activity', filename: 'business_activity_process.gif' },
+    { key: 'architecture-notes', filename: 'architecture_with_adr_notes.gif' }
   ];
 
   const results = [];
@@ -4939,4 +4965,86 @@ window.generateAllTemplateGifs = async function() {
 };
 
 window.generateAndSaveSprint3Gifs = window.generateAllTemplateGifs;
+
+window.generateSprint8Screenshots = async function() {
+  const results = [];
+  try {
+    // 1. Architecture with ADR Notes & Sticky Notes (GIF & PNG)
+    const noteElements = getTemplateElements('architecture-notes');
+    if (noteElements && noteElements.length > 0) {
+      console.log('[Sprint8 Asset] Generating architecture_with_adr_notes.gif...');
+      const gifRes = await exportToGif(noteElements, 'light', {
+        metricsOverlay: true,
+        returnBase64: true,
+        scale: 0.85
+      });
+      const gifPost = await fetch('/api/save-gif', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: 'architecture_with_adr_notes.gif', base64: gifRes.base64 })
+      });
+      results.push(await gifPost.json());
+
+      console.log('[Sprint8 Asset] Generating architecture_with_adr_notes.png...');
+      const pngRes = exportToPng(noteElements, 'light', 2, {
+        metricsOverlay: true,
+        returnBase64: true
+      });
+      const pngPost = await fetch('/api/save-gif', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: 'architecture_with_adr_notes.png', base64: pngRes.base64 })
+      });
+      results.push(await pngPost.json());
+    }
+
+    // 2. SQL DDL Reverse Engineering ERD (PNG)
+    console.log('[Sprint8 Asset] Generating sql_erd_reverse_engineering.png...');
+    const sampleSql = `
+      CREATE TABLE users (
+        id UUID PRIMARY KEY,
+        email VARCHAR(255) NOT NULL,
+        full_name VARCHAR(120),
+        role VARCHAR(32) DEFAULT 'member',
+        created_at TIMESTAMP
+      );
+
+      CREATE TABLE teams (
+        team_id UUID PRIMARY KEY,
+        team_name VARCHAR(100) NOT NULL,
+        tier VARCHAR(32) DEFAULT 'enterprise',
+        max_seats INT DEFAULT 50
+      );
+
+      CREATE TABLE team_members (
+        membership_id UUID PRIMARY KEY,
+        team_id UUID REFERENCES teams(team_id),
+        user_id UUID REFERENCES users(id),
+        role VARCHAR(32) DEFAULT 'contributor'
+      );
+
+      CREATE TABLE projects (
+        project_id UUID PRIMARY KEY,
+        team_id UUID REFERENCES teams(team_id),
+        name VARCHAR(120) NOT NULL,
+        status VARCHAR(32) DEFAULT 'active'
+      );
+    `;
+    const erdRes = parseSqlToErd(sampleSql, { startX: 60, startY: 60 });
+    if (erdRes && erdRes.elements && erdRes.elements.length > 0) {
+      const erdPng = exportToPng(erdRes.elements, 'light', 2, {
+        returnBase64: true
+      });
+      const erdPost = await fetch('/api/save-gif', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: 'sql_erd_reverse_engineering.png', base64: erdPng.base64 })
+      });
+      results.push(await erdPost.json());
+    }
+  } catch (err) {
+    console.error('[Sprint8 Asset] Error generating assets:', err);
+  }
+  return results;
+};
 

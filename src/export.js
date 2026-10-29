@@ -128,6 +128,12 @@ export function exportToPng(elements, theme = 'light', scale = 2, options = {}) 
   }
   ctx.restore();
 
+  if (options && options.returnBase64) {
+    const dataUrl = offscreenCanvas.toDataURL('image/png');
+    const base64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+    return { base64, dataUrl };
+  }
+
   // Download trigger
   const link = document.createElement('a');
   link.download = `excalidraw-diagram-${Date.now()}.png`;

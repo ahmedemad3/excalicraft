@@ -41,12 +41,12 @@
 
 | You'd normally open… | In ExcaliCraft |
 |---|---|
-| **Excalidraw** for a hand-drawn whiteboard | Rough.js hand-drawn style, freehand pen, images, and `.excalidraw` scene import |
-| **Draw.io / Lucidchart** for architecture boxes | Architecture node cards, cloud and tech icons, VPC / subnet / cluster boundaries, swimlanes |
-| **A C4 tool** | C4 Person, System, Container, Component, Database, Queue, and boundaries |
-| **dbdiagram / DrawSQL** for ERDs | ERD table cards with PK/FK and typed columns, **export to SQL DDL** (PostgreSQL, MySQL, ANSI) |
-| **Mermaid Live Editor** | Export to Mermaid and import Mermaid text back onto the canvas |
-| **A notes app** | Rich text tool today; dedicated markdown note cards on the [roadmap](#-roadmap) |
+| **Excalidraw** for a hand-drawn whiteboard | Rough.js hand-drawn aesthetic, freehand pen, embedded images, authentic typography tool (`A` and `T` keys with frameless floating editor and instant click-outside commit), and lossless `.excalidraw` scene import |
+| **Draw.io / Lucidchart** for architecture boxes | Architecture node cards, multi-cloud and tech icons (AWS, GCP, Azure, Kubernetes, Kafka), VPC / subnet / cluster boundaries, swimlanes, and flow-directed dominator tree SPOF intelligence |
+| **A C4 tool** | Simon Brown C4 Person, External Person, System, Container, Component, Database, Queue, and Enterprise / System boundaries |
+| **dbdiagram / DrawSQL** for ERDs | ERD table cards with PK/FK indicators, typed columns, **bi-directional SQL DDL** (instant reverse-engineering from `.sql` DDL files with auto-generated relationships + one-click export to PostgreSQL, MySQL, and ANSI DDL) |
+| **Mermaid Live Editor** | Bidirectional Mermaid.js exchange: export active diagrams to Mermaid and import Flowchart, Sequence, C4, and State Machine syntax back onto the canvas |
+| **A notes / ADR app** | **First-class Architecture Decision Records (ADRs) & Sticky Notes** directly on canvas: live Markdown rendering (`#`, `##`, `- [x]`, `` `code` ``), status badge controls (`ACCEPTED`, `PROPOSED`, `SUPERSEDED`, `REJECTED`), and auto-anchoring to architecture nodes—exported cleanly in PNG, SVG, PDF, and animated GIF |
 
 ---
 
@@ -106,21 +106,22 @@
 
 | Format | Export | Import | Details & Notes |
 |---|:--:|:--:|---|
-| **PNG** | ✅ | ✅ | Full canvas or active selection export; drag-and-drop image import |
-| **SVG** | ✅ | ✅ | Clean vector markup; extracts embedded `.excalidraw` deflate scenes |
+| **PNG** | ✅ | ✅ | Full canvas or active selection export; drag-and-drop image import (includes full ADR & sticky note rendering) |
+| **SVG** | ✅ | ✅ | Clean vector markup with embedded fonts and sanitization; extracts embedded `.excalidraw` deflate scenes |
 | **Multi-Page PDF** | ✅ | ❌ | Auto-calculated orientation and vector page slicing via jsPDF |
-| **Animated GIF** | ✅ | ✅ | 16-frame buttery looping pulse animation via gifenc |
-| **Native Scene JSON** | ✅ | ✅ | Complete scene graph serialization and restoration |
-| **.excalidraw JSON** | ❌ | ✅ | Direct drag-and-drop scene ingestion |
-| **Images (PNG, JPG, WebP, GIF)** | ❌ | ✅ | Multi-image placement on canvas with resize handles |
-| **Mermaid.js** | ✅ | ✅ | Flowchart, Sequence, C4, and State Machine syntax |
-| **SQL DDL** | ✅ | 🗓 Planned | One-click export to PostgreSQL, MySQL, and ANSI DDL from ERD tables |
+| **Animated GIF** | ✅ | ✅ | 16-frame buttery looping pulse animation via gifenc with real-time packet telemetry |
+| **Native Scene JSON** | ✅ | ✅ | Complete scene graph serialization, re-hydration, and autosave state restoration |
+| **.excalidraw JSON** | ❌ | ✅ | Direct drag-and-drop scene ingestion with color, font, and element mapping |
+| **Images (PNG, JPG, WebP, GIF)** | ❌ | ✅ | Multi-image placement on canvas with proportional resize handles |
+| **Mermaid.js** | ✅ | ✅ | Flowchart, Sequence, C4, and State Machine syntax bidirectional import/export |
+| **SQL DDL** | ✅ | ✅ | **Bi-directional:** One-click export to PostgreSQL, MySQL, and ANSI DDL; drag-and-drop or modal import of `.sql` DDL files with automated table layout and PK/FK arrow generation |
+| **Markdown Notes & ADRs** | ✅ | ✅ | First-class ADR decision cards with status badges and component-anchored sticky notes with Markdown formatting, rendered directly on canvas and exported in PNG, SVG, PDF, and animated GIF |
 
 ---
 
 ## 🖼️ Complete Interactive Template Showcase
 
-Below are animated demonstrations of all **16 built-in production templates**, rendered directly from the ExcaliCraft engine.
+Below are animated demonstrations of all **18 built-in production templates**, rendered directly from the ExcaliCraft engine.
 
 ---
 
@@ -284,6 +285,33 @@ Below are animated demonstrations of all **16 built-in production templates**, r
 
 ---
 
+### 17. 📝 Microservices Architecture with ADR Decision Cards & Sticky Notes
+*Production AWS microservices topology coupled with live Architecture Decision Record (ADR) cards and component-anchored sticky notes.*
+
+![Microservices Architecture with ADR Notes](img/architecture_with_adr_notes.png)
+
+- **What it showcases**:
+  - **ADR Decision Card (`ADR-008: CQRS & Transactional Outbox Pattern`)**: First-class architectural documentation card featuring an `ACCEPTED` status badge, architectural context, decision rationale, and system consequences (`Event-driven eventual consistency via Debezium CDC`).
+  - **Component-Anchored Sticky Notes**: Yellow sticky notes pinned directly to nodes (e.g. `Note: Outbox Poller` pinned to Payments Service, `Note: Kafka Partitioning` pinned to Kafka Bus) featuring live Markdown parsing, including task lists (`- [x] Debezium connector configured`, `- [x] CDC stream to Kafka`, `- [ ] DLQ retry policy`).
+  - **Enterprise Microservices Topology**: Kong API Gateway routing to Go Orders Service, Rust Payments Service, Kafka Event Bus, and AWS Aurora PostgreSQL.
+- **Export Fidelity**: Sticky notes and ADR cards render with full fidelity directly onto the HTML5 Canvas, allowing crisp, unclipped exports in **PNG**, **SVG**, **Multi-Page PDF**, and **Animated GIF** formats.
+- **Motion**: Animated live pulse packets navigate across gateway, microservices, and message brokers while ADR documentation remains pinned in place.
+
+---
+
+### 18. 🗄️ SQL DDL Reverse Schema Ingestion (ERD)
+*Instant visual database schema reverse-engineering directly from raw `.sql` DDL migration files.*
+
+![SQL DDL Reverse Engineering](img/sql_erd_reverse_engineering.png)
+
+- **What it showcases**:
+  - **Automated Schema Parsing**: Imports standard PostgreSQL, MySQL, and SQLite `CREATE TABLE` DDL scripts containing inline and out-of-line primary keys and foreign key constraints (`REFERENCES teams(id)`).
+  - **Intelligent Relational Scaffolding**: Automatically calculates grid positions for generated table cards (`users`, `teams`, `team_members`, `projects`), assigns Primary Key (`[PK]`) and Foreign Key (`[FK]`) badges, and discovers column types (`UUID`, `VARCHAR(100)`, `TIMESTAMPTZ`).
+  - **Auto-Routed Relationship Connectors**: Draws orthogonal relational arrows from foreign key child tables to parent primary key definitions with cardinality labels (`FK`).
+- **Workflow**: Paste raw SQL in the import modal or drag and drop a `.sql` file onto the canvas to convert legacy migration scripts into interactive visual ERDs in seconds.
+
+---
+
 ## 🎥 Video Production & Creator Guide
 
 If you are creating **video tutorials, product demos, YouTube reviews, or tech conference talks** using ExcaliCraft, follow these best practices for maximum visual impact:
@@ -315,11 +343,16 @@ If you are creating **video tutorials, product demos, YouTube reviews, or tech c
 | **Crisp Modern Architecture Cards** | ✅ | ❌ | ✅ | ✅ |
 | **Traveling Animated Packet Flows** | ✅ | ❌ | ❌ | ❌ |
 | **Live SPOF Detection (Tarjan Algorithm)** | ✅ | ❌ | ❌ | ❌ |
+| **Flow-Directed Dominator Tree SPOF** | ✅ | ❌ | ❌ | ❌ |
 | **End-to-End Path Latency Calculator** | ✅ | ❌ | ❌ | ❌ |
 | **Capacity Saturation (QPS Overload) Alerts** | ✅ | ❌ | ❌ | ❌ |
 | **C4 Model Primitives (Person, Ext, DB, Queue)** | ✅ | ❌ | Partial | Partial |
 | **Cloud Icons (AWS, GCP, Azure, Tech)** | ✅ (Native) | Libraries | Libraries | Limited |
 | **ERD Tables with PK/FK & Column Manager** | ✅ | ❌ | ✅ | ✅ |
+| **Bi-Directional SQL DDL (Export & Reverse Import)**| ✅ | ❌ | Export only | Export only |
+| **Architecture Decision Records (ADR) Cards** | ✅ | ❌ | ❌ | Partial |
+| **Component-Anchored Sticky Markdown Notes** | ✅ | ❌ | ❌ | Partial |
+| **Authentic Floating Text Tool ('A' / 'T')** | ✅ | ✅ | ❌ | ❌ |
 | **Sequence Lifelines & Activation Boxes** | ✅ | ❌ | ✅ | ✅ |
 | **Native Looping Animated GIF Export** | ✅ | ❌ | ❌ | ❌ |
 | **Excalidraw Native & Compressed SVG Ingestion** | ✅ | ✅ | ❌ | ❌ |
@@ -408,15 +441,20 @@ generateAllTemplateGifs()
 
 ExcaliCraft is actively developed. Please review our current functional boundaries:
 
-- **SQL Reverse Import**: ERD tables support full export to PostgreSQL, MySQL, and ANSI SQL. Reverse parsing (`CREATE TABLE` -> ERD) is currently scheduled for Sprint 8.
-- **First-Class Note Cards**: Freeform text annotations are fully supported via the Text tool (`T`); dedicated markdown note cards and sticky notes are in active development.
-- **Directed Dominator Tree SPOF**: Current SPOF analysis uses Tarjan's articulation points with explicit `role` and `isReplicated` overrides; directed flow-dominator trees are planned for advanced pipeline topologies.
-- **RTL Typography**: Right-to-left (Arabic/Hebrew) bidirectional text flow on canvas is on the active roadmap.
+- **SQL Schema Scope**: The SQL DDL reverse-engineering engine supports standard ANSI, PostgreSQL, MySQL, and SQLite `CREATE TABLE` syntax, column datatypes, primary keys, and foreign keys. Advanced vendor-specific procedural triggers, stored procedures, and complex custom partitioning clauses are safely skipped during visual ERD generation.
+- **RTL Typography**: Right-to-left (Arabic/Hebrew) bidirectional text flow on canvas is on the active roadmap for upcoming releases.
+- **Live APM Streaming**: The flow simulation overlay calculates quantitative metrics from user-configured architectural thresholds; live streaming OpenTelemetry WebSocket ingestion is planned for future releases.
 - **Excalidraw Ingestion Scope**: Ingests standard `.excalidraw` JSON and compressed SVG payloads with high fidelity; proprietary third-party canvas extensions outside standard Excalidraw types are sanitized to standard shapes.
 
 ---
 
 ## 🗺️ Roadmap & Sprint Milestones
+
+### Completed in Sprint 8 (v1.2 Architecture Notes & Schema Ingestion) 🟢
+- [x] **SQL DDL → ERD Reverse Parser**: Drag-and-drop or modal import of `.sql` schema files (`CREATE TABLE`, inline and out-of-line `FOREIGN KEY`, `REFERENCES`) to automatically scaffold interactive table cards with auto-routed PK/FK links.
+- [x] **First-Class Markdown Notes & ADR Cards**: Dedicated rich Architecture Decision Record (ADR) cards with status badges (`ACCEPTED`, `PROPOSED`, `SUPERSEDED`, `REJECTED`) and component-anchored sticky notes with live Markdown formatting (`#`, `##`, `- [x]`, `` `code` ``), rendered directly on canvas and exported in SVG, PDF, PNG, and looping GIF.
+- [x] **Directed Dominator Tree SPOF**: Flow-directed Lengauer-Tarjan dominator tree analysis with entry-point root detection, reachable blast-radius impact highlighting, and cycle tolerance.
+- [x] **Authentic Excalidraw Text Tool & Hotkey**: Letter `A` hotkey support, frameless floating canvas textarea, instant click-outside commit, and dynamic bounding-box auto-sizing.
 
 ### Completed in Sprint 7 (v1.1 Hardening) 🟢
 - [x] **Critical-Path Latency Engine**: Rewrote path traversal to DFS longest-path algorithm with cycle detection and depth bounds; accurately calculates multi-branch bottlenecks.
@@ -427,11 +465,10 @@ ExcaliCraft is actively developed. Please review our current functional boundari
 - [x] **Automated CI/CD & Unified Test Runner**: Unified `npm test` script executing 11 test suites with 100% pass rate; GitHub Actions CI workflow on every push/PR.
 - [x] **Open Source Licensing**: Standard MIT License added to repository root.
 
-### Upcoming Milestones (Sprint 8+) 🗓️
-- [ ] **SQL DDL → ERD Reverse Parser**: Drag-and-drop `.sql` schema files (`CREATE TABLE`) to automatically scaffold interactive table cards with PK/FK links.
-- [ ] **First-Class Markdown Notes**: Dedicated rich architectural documentation cards and per-element sticky notes rendered on canvas and included in exports.
-- [ ] **Directed Dominator Tree SPOF**: Flow-directed dominator tree analysis with real-time affected downstream path highlighting.
+### Upcoming Milestones (Sprint 9+) 🗓️
 - [ ] **Arabic & RTL Canvas Typography**: Native bidirectional text layout and font rendering for right-to-left architectural documentation.
+- [ ] **OpenTelemetry Live Stream Ingestion**: Live trace and metrics visualization streaming over WebSockets into animated canvas packet flows.
+- [ ] **Multi-User Realtime Collaboration**: CRDT-based WebRTC peer-to-peer live cursor and element synchronization.
 
 ---
 
@@ -444,19 +481,19 @@ excalicraft/
 ├── src/
 │   ├── main.js             # Studio controller, selection manager, inspector bindings, state machine
 │   ├── renderer.js         # Canvas rendering engine (Rough.js + Crisp vector cards, C4, boundaries)
-│   ├── graph.js            # Architecture graph intelligence (Tarjan SPOF, latency, capacity)
-│   ├── templates.js        # 16 production architecture templates (C4, Cloud, Microservices, ERD)
+│   ├── graph.js            # Architecture graph intelligence (Tarjan & Dominator Tree SPOF, latency, capacity)
+│   ├── templates.js        # 18 production architecture templates (C4, Cloud, Microservices, ERD, ADR Notes)
 │   ├── export.js           # Multi-format export engine (GIF, SVG, PNG, PDF, Excalidraw JSON)
 │   ├── math.js             # Geometric collision, bounding box calculations, hit testing, viewport
 │   ├── history.js          # Undo / redo historical stack manager
 │   ├── icons.js            # Lucide & Cloud architecture icon registry (AWS, GCP, Azure, Tech)
 │   ├── presenter.js        # Fullscreen presentation mode with smooth camera choreographer
 │   ├── minimap.js          # Live interactive viewport overview navigator
-│   ├── codegen.js          # SQL DDL generation from ERD tables (PostgreSQL, MySQL, ANSI)
+│   ├── codegen.js          # SQL DDL export & reverse-engineering parser (CREATE TABLE -> ERD)
 │   └── mermaid.js          # Mermaid.js & PlantUML bidirectional diagram converter
-├── img/                    # High-fidelity looping animated GIFs for all 16 architecture templates
+├── img/                    # High-fidelity looping animated GIFs and screenshots for all 18 templates
 ├── doc/                    # Architectural specs, handoffs, test scenarios, and issues log
-└── tests/                  # Automated verification and quality assurance test suites
+└── tests/                  # Automated verification and quality assurance test suites (12 suites)
 ```
 
 ---
