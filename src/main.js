@@ -43,146 +43,30 @@ const BG_COLORS = [
   '#eebefa', '#dee2e6', '#c3fae8', '#ffd8a8', '#ffffff'
 ];
 
-// Local state persistence key (ISSUE-12)
-const AUTOSAVE_STORAGE_KEY = 'excalidraw_craft_autosave_v1';
+// Local state persistence key (ISSUE-12 & ISSUE-55)
+const AUTOSAVE_STORAGE_KEY = 'excalicraft_autosave_v2';
 
-// Default sample diagram
+// Legacy welcome element detector & purger (ISSUE-55)
+function isLegacyWelcomeElements(elements) {
+  if (!Array.isArray(elements) || elements.length === 0) return false;
+  return elements.some(el =>
+    el && (
+      (typeof el.text === 'string' && (
+        el.text.includes('ExcaliCraft\nInteractive Engine') ||
+        el.text.includes('Rough.js\nSketch Geometry') ||
+        el.text.includes('60 FPS\nCanvas') ||
+        el.text.includes('Click any element to inspect')
+      )) ||
+      el.seed === 84920412 ||
+      el.seed === 3948102 ||
+      el.seed === 5829103
+    )
+  );
+}
+
+// Default sample diagram (now empty to show Welcome Onboarding Card)
 function createWelcomeElements() {
-  return [
-    {
-      id: generateId(),
-      type: 'rectangle',
-      x: 120,
-      y: 140,
-      width: 220,
-      height: 120,
-      angle: 0,
-      strokeColor: '#1971c2',
-      backgroundColor: '#a5d8ff',
-      fillStyle: 'hachure',
-      strokeWidth: 2.5,
-      strokeStyle: 'solid',
-      roughness: 1.2,
-      opacity: 100,
-      seed: 84920412
-    },
-    {
-      id: generateId(),
-      type: 'text',
-      x: 145,
-      y: 180,
-      text: "ExcaliCraft\nInteractive Engine",
-      fontSize: 26,
-      strokeColor: '#1864ab',
-      roughness: 1.2,
-      opacity: 100,
-      seed: 129481
-    },
-    {
-      id: generateId(),
-      type: 'arrow',
-      x: 340,
-      y: 200,
-      width: 130,
-      height: 0,
-      angle: 0,
-      strokeColor: '#495057',
-      backgroundColor: 'transparent',
-      fillStyle: 'none',
-      strokeWidth: 2.5,
-      strokeStyle: 'solid',
-      roughness: 1.2,
-      opacity: 100,
-      seed: 9481230
-    },
-    {
-      id: generateId(),
-      type: 'ellipse',
-      x: 470,
-      y: 135,
-      width: 210,
-      height: 130,
-      angle: 0,
-      strokeColor: '#2f9e44',
-      backgroundColor: '#b2f2bb',
-      fillStyle: 'cross-hatch',
-      strokeWidth: 2.5,
-      strokeStyle: 'solid',
-      roughness: 1.2,
-      opacity: 100,
-      seed: 3948102
-    },
-    {
-      id: generateId(),
-      type: 'text',
-      x: 505,
-      y: 180,
-      text: "Rough.js\nSketch Geometry",
-      fontSize: 26,
-      strokeColor: '#2b8a3e',
-      roughness: 1.2,
-      opacity: 100,
-      seed: 492019
-    },
-    {
-      id: generateId(),
-      type: 'arrow',
-      x: 680,
-      y: 200,
-      width: 120,
-      height: 0,
-      angle: 0,
-      strokeColor: '#495057',
-      backgroundColor: 'transparent',
-      fillStyle: 'none',
-      strokeWidth: 2.5,
-      strokeStyle: 'solid',
-      roughness: 1.2,
-      opacity: 100,
-      seed: 7123984
-    },
-    {
-      id: generateId(),
-      type: 'diamond',
-      x: 800,
-      y: 130,
-      width: 170,
-      height: 140,
-      angle: 0,
-      strokeColor: '#e03131',
-      backgroundColor: '#ffc9c9',
-      fillStyle: 'hachure',
-      strokeWidth: 2.5,
-      strokeStyle: 'solid',
-      roughness: 1.2,
-      opacity: 100,
-      seed: 5829103
-    },
-    {
-      id: generateId(),
-      type: 'text',
-      x: 825,
-      y: 185,
-      text: "60 FPS\nCanvas",
-      fontSize: 26,
-      strokeColor: '#c92a2a',
-      roughness: 1.2,
-      opacity: 100,
-      seed: 692819
-    },
-    {
-      id: generateId(),
-      type: 'text',
-      x: 130,
-      y: 320,
-      text: "⚡ Click any element to inspect its exact Excalidraw JSON schema and Rough.js seed!",
-      fontSize: 24,
-      strokeColor: '#868e96',
-      roughness: 1,
-      opacity: 100,
-      seed: 391024
-    }
-  ];
+  return [];
 }
 
 class App {
@@ -190,12 +74,12 @@ class App {
     this.canvas = document.getElementById('drawingCanvas');
     this.renderer = new SceneRenderer(this.canvas);
 
-    // Auto-save session restore check (ISSUE-12)
+    // Auto-save session restore check (ISSUE-12 & ISSUE-55)
     const saved = this.loadAutoSave();
     let initialElements = null;
     this._restoredFromAutosave = false;
 
-    if (saved && Array.isArray(saved.elements) && saved.elements.length > 0) {
+    if (saved && Array.isArray(saved.elements) && saved.elements.length > 0 && !isLegacyWelcomeElements(saved.elements)) {
       initialElements = saved.elements;
       this.scrollX = Number.isFinite(saved.scrollX) ? saved.scrollX : 40;
       this.scrollY = Number.isFinite(saved.scrollY) ? saved.scrollY : 40;
@@ -386,10 +270,42 @@ class App {
 
   loadAutoSave() {
     try {
+      // 1. Proactively purge legacy v1 storage if it contains obsolete 3-box demo
+      try {
+        const v1Raw = localStorage.getItem('excalidraw_craft_autosave_v1');
+        if (v1Raw) {
+          const v1Data = JSON.parse(v1Raw);
+          if (v1Data && Array.isArray(v1Data.elements) && isLegacyWelcomeElements(v1Data.elements)) {
+            console.info('[AutoSave] Purged legacy welcome elements from v1 storage.');
+            localStorage.removeItem('excalidraw_craft_autosave_v1');
+          }
+        }
+      } catch (_) {
+        localStorage.removeItem('excalidraw_craft_autosave_v1');
+      }
+
+      // 2. Read active v2 storage
       const raw = localStorage.getItem(AUTOSAVE_STORAGE_KEY);
-      if (!raw) return null;
+      if (!raw) {
+        // Fallback check v1 if user had custom work (non-legacy demo)
+        const v1 = localStorage.getItem('excalidraw_craft_autosave_v1');
+        if (v1) {
+          try {
+            const v1Data = JSON.parse(v1);
+            if (v1Data && Array.isArray(v1Data.elements) && !isLegacyWelcomeElements(v1Data.elements)) {
+              return v1Data;
+            }
+          } catch (_) {}
+        }
+        return null;
+      }
       const data = JSON.parse(raw);
       if (data && Array.isArray(data.elements)) {
+        if (isLegacyWelcomeElements(data.elements)) {
+          console.info('[AutoSave] Purged legacy welcome elements from storage.');
+          localStorage.removeItem(AUTOSAVE_STORAGE_KEY);
+          return null;
+        }
         return data;
       }
     } catch (err) {

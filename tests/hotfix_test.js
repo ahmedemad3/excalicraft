@@ -116,7 +116,19 @@ assert(
   mainJs.includes('_dismissedWelcome'),
   'main.js must manage _dismissedWelcome state'
 );
-console.log('  ✔️ TC-HF-JS-01: main.js correctly handles empty state and welcome onboarding lifecycle');
+assert(
+  mainJs.includes('isLegacyWelcomeElements'),
+  'main.js must define isLegacyWelcomeElements detector'
+);
+assert(
+  mainJs.includes("const AUTOSAVE_STORAGE_KEY = 'excalicraft_autosave_v2';"),
+  'main.js must use v2 autosave key to prevent legacy session pollution'
+);
+assert(
+  /function createWelcomeElements\(\)\s*\{\s*return \[\];\s*\}/.test(mainJs),
+  'createWelcomeElements must return empty array to prevent 3-box diagram generation'
+);
+console.log('  ✔️ TC-HF-JS-01: main.js correctly handles empty state, legacy element purging, and welcome onboarding lifecycle');
 
 console.log('\n================================================================');
 console.log('🏁 Hotfix Test Summary: All assertions passed successfully! (100%)');

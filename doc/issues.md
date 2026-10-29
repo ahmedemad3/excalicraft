@@ -929,9 +929,13 @@ Here is the exact correlation:
 - **Reported**: Feature request & user onboarding fix. When cloning and starting the server, instead of displaying the starter Welcome Modal dialog from the visual design specification, the canvas loaded 4 legacy hardcoded demo shapes, causing the onboarding modal to remain hidden (`this.elements.length !== 0`). In addition, the existing welcome card DOM and CSS used system emojis (`☁️`, `🏛️`, `🗄️`, `⚡`) instead of authentic vector icons and lacked the exact typography, pill badge, and button styling from the design specification.
 - **Root Cause**:
   1. `App.constructor` in [src/main.js](file:///c:/Users/ahmed/.gemini/antigravity/scratch/excalicraft/src/main.js) fell back to `createWelcomeElements()` when no autosave was present in `localStorage`, populating the canvas with demo shapes and suppressing `updateEmptyState()`.
-  2. [index.html](file:///c:/Users/ahmed/.gemini/antigravity/scratch/excalicraft/index.html) and [src/style.css](file:///c:/Users/ahmed/.gemini/antigravity/scratch/excalicraft/src/style.css) had an early prototype draft of the card with emojis and small dimensions.
+  2. Legacy localStorage key `excalidraw_craft_autosave_v1` retained the obsolete demo shapes ("ExcaliCraft Interactive Engine" / "Rough.js Sketch Geometry" / "60 FPS Canvas") across browser reloads, causing `loadAutoSave()` to repopulate the canvas with legacy elements.
+  3. A parallel development server instance from another repository (`excalidraw-REA`) was bound to IPv6 `::1:5174`, conflicting with and intercepting traffic destined for `excalicraft`.
 - **Resolution**:
   - Updated [src/main.js](file:///c:/Users/ahmed/.gemini/antigravity/scratch/excalicraft/src/main.js) to initialize fresh sessions with `initialElements = []`, enabling `updateEmptyState()` to immediately display the Welcome Modal over the canvas on initial launch.
+  - Implemented `isLegacyWelcomeElements()` detector and automated localStorage purge in `loadAutoSave()`: any legacy demo diagrams stored under `excalidraw_craft_autosave_v1` or `excalicraft_autosave_v2` are automatically purged from client storage on startup.
+  - Migrated active storage key to `excalicraft_autosave_v2` and ensured `createWelcomeElements()` returns an empty array `[]`.
+  - Identified and terminated the conflicting rogue process listening on `::1:5174`, binding `excalicraft` exclusively to port 5174.
   - Re-architected `#welcomeOnboarding` in [index.html](file:///c:/Users/ahmed/.gemini/antigravity/scratch/excalicraft/index.html) to match the visual design:
     - **Header Badge**: Centered sky blue pill (`#e0f2fe`) with Lucide `sparkles` icon and uppercase `WELCOME TO EXCALICRAFT`.
     - **Typography**: Main heading `Expressive System Architecture & Diagramming` with subtitle `Start sketching freely, or load a production-ready starter template:`.
@@ -944,6 +948,6 @@ Here is the exact correlation:
   - Implemented responsive, pixel-perfect CSS in [src/style.css](file:///c:/Users/ahmed/.gemini/antigravity/scratch/excalicraft/src/style.css) with 24px rounded corners, elevation drop-shadow (`box-shadow: 0 24px 64px -12px rgba(0, 0, 0, 0.14)`), smooth hover physics, and full dark theme support (`body.theme-dark`).
   - Added lifecycle state handling in [src/main.js](file:///c:/Users/ahmed/.gemini/antigravity/scratch/excalicraft/src/main.js) (`_dismissedWelcome`) so clicking "Start with Blank Canvas" dismisses the modal, loading a template dismisses and auto-fits zoom, and clearing canvas re-surfaces the welcome card.
 - **Status**: 🟢 Resolved
-- **Verification**: Verified via automated test cases `TC-HF-WLC-01`, `TC-HF-CSS-01`, and `TC-HF-JS-01` in `tests/hotfix_test.js`.
+- **Verification**: Verified via automated test cases `TC-HF-WLC-01`, `TC-HF-CSS-01`, and `TC-HF-JS-01` in `tests/hotfix_test.js` and confirmed through live headless browser verification on `http://localhost:5174/`.
 
 
