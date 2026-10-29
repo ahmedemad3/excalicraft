@@ -3,7 +3,7 @@
 **Project**: ExcaliDraw Pro (ExcaliCraft)  
 **Location**: `doc/issues.md`  
 **Last Updated**: October 29, 2026  
-**Status Overview**: 49 Tracked Issues | 49 Resolved (100%) | 0 Open — Sprints 1–7 Completed 🟢
+**Status Overview**: 53 Tracked Issues | 49 Resolved (92%) | 4 Planned (Sprint 8) 🔵 — Sprints 1–7 Completed 🟢
 
 ---
 
@@ -79,6 +79,10 @@ Here is the exact correlation:
 | **ISSUE-47** | README / Docs | README: Autosave Feature Exists But Is Not Mentioned | Low | 🟢 Resolved | Verified (README updated with dedicated Auto-Save & Session Restore section) |
 | **ISSUE-48** | README / Docs | README: "100% Excalidraw Compatible, Zero Data Loss" Is Too Absolute | Low | 🟢 Resolved | Verified (README overclaims replaced with accurate high-fidelity metrics) |
 | **ISSUE-49** | README / Docs | README: "Telemetry" Terminology Misleads Users — Should Be "Flow Overlay" | Low | 🟢 Resolved | Verified (README updated with Flow Simulation disclaimer and mode naming) |
+| **ISSUE-50** | Interoperability / DDL | SQL DDL → ERD Reverse Parser (CREATE TABLE Ingestion with PK/FK Links) | High | 🔵 Planned (Sprint 8) | Planned (TC-S8-SQL-01..03, SEC-S8-01) |
+| **ISSUE-51** | Modeling / Docs | First-Class Markdown Notes (Architecture Decision Cards & Canvas Sticky Callouts) | Medium | 🔵 Planned (Sprint 8) | Planned (TC-S8-NOTE-01..03, SEC-S8-02) |
+| **ISSUE-52** | Architecture / Reliability | Flow-Directed Dominator Tree SPOF & Downstream Blast Radius Highlighting | High | 🔵 Planned (Sprint 8) | Planned (TC-S8-DOM-01..03, SEC-S8-03) |
+| **ISSUE-53** | Canvas / UX & Typography | Authentic Excalidraw Text Tool & Input UX ('A' Icon, Frameless Text, Non-Enter Commit) | High | 🔵 Planned (Sprint 8) | Planned (TC-S8-TXT-01..04, SEC-S8-04) |
 
 ---
 
@@ -851,3 +855,56 @@ Here is the exact correlation:
   - The feature comparison table row is renamed to "Live Flow Simulation Overlay (QPS, Latency, SPOF)".
 - **Status**: 🟢 Resolved
 - **Verification**: README no longer implies real-time data collection or live monitoring.
+
+---
+
+### ISSUE-50: SQL DDL → ERD Reverse Parser (CREATE TABLE Ingestion with PK/FK Links)
+- **Reported**: Feature request & Sprint 8 Milestone 8.1. Users cannot import existing database schemas (`.sql` DDL files) onto the canvas. Currently, ERD tables can only be manually created and exported to SQL DDL (`ERD → SQL DDL`), but there is no reverse path to ingest SQL schemas into visual interactive table cards.
+- **Root Cause**: `src/codegen.js` was architected with export functions (`exportToSql(elements, dialect)`) but lacks an AST parser or reverse tokenization module to parse `CREATE TABLE (...)` statements back into `erd-table` elements and relational `connector` lines.
+- **Planned Resolution**:
+  - Implement `parseSqlToErd(sqlContent)` in `src/codegen.js`.
+  - Support PostgreSQL, MySQL, and ANSI standard DDL: extract table names, column names, data types, primary keys (`PRIMARY KEY`), foreign keys (`FOREIGN KEY ... REFERENCES ...`), nullable/not-null attributes, and unique constraints.
+  - Wire drag-and-drop file ingestion in `src/main.js` for `.sql` extensions, plus an "Import SQL DDL" button in the Export/Import modal.
+  - Compute automatic grid layout coordinates ($x, y$) for imported tables and automatically generate foreign-key orthogonal arrows connecting referenced PK columns to FK columns.
+- **Status**: 🔵 Planned (Sprint 8)
+- **Verification**: Planned via test cases `TC-S8-SQL-01`, `TC-S8-SQL-02`, `TC-S8-SQL-03`, and security test `SEC-S8-01`.
+
+---
+
+### ISSUE-51: First-Class Markdown Notes (Architecture Decision Cards & Canvas Sticky Callouts)
+- **Reported**: Feature request & Sprint 8 Milestone 8.2. Users cannot create dedicated architectural documentation (e.g., ADR notes, design trade-offs, security assumptions, deployment runbooks) or anchor sticky callouts to specific system components. Standard text elements lack structured formatting, headers, lists, code blocks, and callout styling.
+- **Root Cause**: The canvas only supports raw text elements (`type: 'text'`) rendered in basic single/multiline font styles, with no markdown parsing, syntax highlighting, or structured card element types.
+- **Planned Resolution**:
+  - Add `'note'` element type to canvas state with subtypes `'adr'` and `'sticky'`.
+  - Implement client-side lightweight Markdown parsing in `src/renderer.js` supporting `# H1`, `## H2`, `**bold**`, `*italic*`, `- [ ] lists`, `` `code` ``, and blockquotes `>`.
+  - Add Note tool to palette and contextual inspector properties (note title, markdown editor, theme swatch: yellow sticky, blue ADR, green runbook, purple spec).
+  - Include full note contents and callouts in PNG, SVG, PDF, and `.excalidraw` exports.
+- **Status**: 🔵 Planned (Sprint 8)
+- **Verification**: Planned via test cases `TC-S8-NOTE-01`, `TC-S8-NOTE-02`, `TC-S8-NOTE-03`, and security test `SEC-S8-02`.
+
+---
+
+### ISSUE-52: Flow-Directed Dominator Tree SPOF & Downstream Blast Radius Highlighting
+- **Reported**: Feature request & Sprint 8 Milestone 8.3. Current SPOF detection relies on undirected graph bridge/articulation points (Tarjan's algorithm). This fails to model directed operational dependencies where a service failure only cascades in the direction of RPC / message flow. Furthermore, when hovering or selecting a suspected SPOF node, users cannot see which downstream services and customer endpoints would be completely cut off (blast radius).
+- **Root Cause**: `src/graph.js` treats connections as undirected edges for biconnectivity analysis, ignoring arrow head direction (`sourceId` $\to$ `targetId`), entry point roots, and immediate dominator tree mathematical properties.
+- **Planned Resolution**:
+  - Implement flow-directed dominator tree analysis (`computeDominatorTree(elements, entryNodeIds)`) in `src/graph.js` using iterative dataflow or Lengauer-Tarjan algorithm.
+  - Identify non-trivial dominator nodes ($idom(w) = v$ where failing $v$ leaves $w$ unreachable from all roots).
+  - Add interactive "Blast Radius" visualization on canvas: hovering or selecting an SPOF node highlights its entire dominated downstream subgraph in high-visibility crimson red with pulsing danger borders and an impact metric pill (e.g., `⚠️ Blast Radius: 4 services cut off`).
+- **Status**: 🔵 Planned (Sprint 8)
+- **Verification**: Planned via test cases `TC-S8-DOM-01`, `TC-S8-DOM-02`, `TC-S8-DOM-03`, and security test `SEC-S8-03`.
+
+---
+
+### ISSUE-53: Authentic Excalidraw Text Tool & Input UX ('A' Icon, Frameless Text, Non-Enter Commit)
+- **Reported**: UX bug & external parity review (Sprint 8 Milestone 8.4). When selecting the Text tool (`T`) and typing, the text does not appear on canvas unless the user hits Enter. In Excalidraw, text appears interactively on canvas without requiring an Enter key to materialize. Furthermore, the toolbar button uses a Word-like boxed `T` icon, and the canvas displays a heavy text-box container border rather than clean, seamless floating text matching Excalidraw.
+- **Root Cause**:
+  1. Toolbar button `#tool-text` in `index.html` uses an SVG with a square box around `T` (`<rect .../><path d="M... T"/>`), looking like Microsoft Word's "Insert Text Box" instead of Excalidraw's pure typography `A` (Letter A) icon.
+  2. Canvas text input mechanism creates an inline `<textarea id="inlineTextEditor">` with rigid box borders, and event handling required Enter key submission or had fragile blur-commit triggers, causing uncommitted text to vanish if the user clicked away or typed multi-line notes.
+- **Planned Resolution**:
+  - Replace `#tool-text` SVG in `index.html` with Excalidraw's authentic clean Letter `A` icon without any outer box frame.
+  - Redesign `#inlineTextEditor` CSS in `src/style.css` to be completely transparent, borderless, and seamless, perfectly matching the active font family, size, line-height, and color of the canvas text element.
+  - Refactor text creation lifecycle in `src/main.js`: clicking canvas instantly places a floating text cursor; typing immediately updates canvas state; clicking outside or pressing Escape cleanly commits the text element without requiring Enter. Shift+Enter / Enter naturally inserts newlines for multiline text. Empty text on blur gracefully cleans up without leaving ghost elements.
+- **Status**: 🔵 Planned (Sprint 8)
+- **Verification**: Planned via test cases `TC-S8-TXT-01`, `TC-S8-TXT-02`, `TC-S8-TXT-03`, `TC-S8-TXT-04`, and security test `SEC-S8-04`.
+

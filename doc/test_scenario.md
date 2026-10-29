@@ -1583,3 +1583,182 @@ Executed via `tests/sprint4_test.js` covering both functional interoperability a
   3. `(Get-ChildItem img/ -Filter "export_gif_*").Count` → 0.
   4. `(Get-ChildItem img/).Count` → 16 (exactly 16 production GIFs).
 * **Verification Status:** `PASSED` 🟢
+
+---
+
+# Sprint 8 Quality Assurance & Test Verification Suites
+
+## Suite 8.1: SQL DDL → ERD Reverse Parser (`TC-S8-SQL`)
+
+### TC-S8-SQL-01: Multi-Table DDL Ingestion into Interactive ERD Tables
+* **Objective:** Verify `parseSqlDdl(sqlText)` correctly parses multiple `CREATE TABLE` definitions and creates canvas `table` elements with accurate column metadata.
+* **Test Input:**
+  ```sql
+  CREATE TABLE users (
+    id UUID PRIMARY KEY,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE orders (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL,
+    total_amount NUMERIC(10,2) NOT NULL,
+    status VARCHAR(50) DEFAULT 'pending',
+    CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+  ```
+* **Expected Result:**
+  - Emits 2 `table` elements (`users` and `orders`).
+  - `users` contains 3 columns: `id` (PK), `email` (NOT NULL, UNIQUE), `created_at`.
+  - `orders` contains 4 columns: `id` (PK), `user_id` (FK), `total_amount`, `status`.
+  - Table titles, column types, and PK/FK markers match SQL definitions.
+* **Verification Status:** `PENDING` 🔵
+
+---
+
+### TC-S8-SQL-02: Foreign Key Referential Connector Generation
+* **Objective:** Verify that table foreign key definitions automatically generate relational connector arrows with `startBinding` and `endBinding`.
+* **Test Input:** Same as TC-S8-SQL-01.
+* **Expected Result:**
+  - Exactly 1 `arrow` element is generated.
+  - Arrow `startBinding.elementId` points to the `users` table card.
+  - Arrow `endBinding.elementId` points to the `orders` table card.
+  - Arrow carries `label: "1:N"` or `users.id → orders.user_id` with `isErdRel: true`.
+* **Verification Status:** `PENDING` 🔵
+
+---
+
+### TC-S8-SQL-03: Dialect Tolerance & Comment Stripping
+* **Objective:** Verify parser survives SQL dialect quirks (backticks in MySQL, double quotes in Postgres, `IF NOT EXISTS`, comments, trailing commas).
+* **Test Input:**
+  ```sql
+  -- This is a comment
+  /* Multi-line
+     table comment */
+  CREATE TABLE IF NOT EXISTS `products` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `sku` VARCHAR(100) /* inline comment */ NOT NULL,
+    `price` DECIMAL(10,2)
+  );
+  ```
+* **Expected Result:** Successfully extracts `products` table with clean identifiers stripped of backticks and comments without syntax errors.
+* **Verification Status:** `PENDING` 🔵
+
+---
+
+## Suite 8.2: First-Class Markdown Notes (`TC-S8-NOTE`)
+
+### TC-S8-NOTE-01: Markdown AST Parsing & Rendering Elements
+* **Objective:** Verify `type: 'note-card'` elements parse markdown tokens (headers, lists, code blocks, task items) into structured canvas layout blocks.
+* **Test Input:**
+  ```markdown
+  # ADR-001: Cache Strategy
+  We use Redis for session cache.
+  - [x] Cluster mode enabled
+  - [ ] Write-through persistence
+  ```
+* **Expected Result:**
+  - Tokenizer decomposes content into Header (`H1`), Paragraph, and Checkbox List tokens.
+  - `getElementBounds(noteElement)` accounts for padding, header bar, and multiline body height.
+* **Verification Status:** `PENDING` 🔵
+
+---
+
+### TC-S8-NOTE-02: Element Anchor Tracking
+* **Objective:** Verify that an attached sticky note (`attachedToElementId: 'node-order'`) moves synchronously when the host node's coordinates change.
+* **Test Steps:**
+  1. Create node `node-order` at `(100, 100)`.
+  2. Attach note card `note-1` with offset `(dx: 150, dy: 0)` → position `(250, 100)`.
+  3. Translate `node-order` by `(+50, +30)`.
+* **Expected Result:** `note-1` coordinates automatically update to `(300, 130)`.
+* **Verification Status:** `PENDING` 🔵
+
+---
+
+### TC-S8-NOTE-03: Collapsible State & Export Serialization
+* **Objective:** Verify collapsing a note card reduces its height to the title pill, and SVG/PDF export correctly serializes the note content.
+* **Expected Result:**
+  - When `isCollapsed: true`, `getElementBounds` returns height corresponding strictly to the header pill (`36px`).
+  - SVG export includes the note card with preserved styling.
+* **Verification Status:** `PENDING` 🔵
+
+---
+
+## Suite 8.3: Directed Dominator Tree SPOF (`TC-S8-DOM`)
+
+### TC-S8-DOM-01: Immediate Dominator ($idom$) Calculation
+* **Objective:** Verify `computeDominatorTree(rootId)` calculates immediate dominators on a directed microservices flow.
+* **Test Data:**
+  - Directed graph: `Client → Gateway → OrderService → Database` and `Gateway → AuthService`.
+* **Expected Result:**
+  - `Gateway` immediately dominates `OrderService`, `AuthService`, and `Database`.
+  - `idom(Gateway) = Client`.
+  - `idom(OrderService) = Gateway`.
+  - `idom(Database) = OrderService`.
+* **Verification Status:** `PENDING` 🔵
+
+---
+
+### TC-S8-DOM-02: Blast Radius Calculation & Starvation Detection
+* **Objective:** Verify `getBlastRadius('Gateway')` returns all strictly dominated downstream nodes and marks them as traffic starved.
+* **Expected Result:**
+  - Dominator subtree for `Gateway` contains `{ Gateway, OrderService, AuthService, Database }`.
+  - Blast radius percentage = `4 / 5 = 80%`.
+  - Severed flow connectors show `0 QPS`.
+* **Verification Status:** `PENDING` 🔵
+
+---
+
+### TC-S8-DOM-03: Multipath Bypass Resilience
+* **Objective:** Verify that a secondary independent path from `Client` to `Database` breaks `Gateway`'s dominance over `Database`.
+* **Test Data:** Same as TC-S8-DOM-01, plus direct bypass edge: `Client → Database`.
+* **Expected Result:**
+  - `Gateway` no longer dominates `Database` (`idom(Database) = Client`).
+  - Failure of `Gateway` leaves `Database` reachable via the bypass route.
+* **Verification Status:** `PENDING` 🔵
+
+---
+
+## Suite 8.4: Authentic Excalidraw Text Tool & Input UX (`TC-S8-TXT`)
+
+### TC-S8-TXT-01: Toolbar Displays Letter 'A' Icon
+* **Objective:** Verify the text tool button in the main tool palette displays an authentic letter `A` icon matching Excalidraw standards rather than a boxed `T`.
+* **Test Steps:**
+  1. Inspect `#tool-text` in DOM.
+  2. Verify icon markup or SVG contains standard letter `A` vector path without an enclosing Word-like square frame.
+* **Verification Status:** `PENDING` 🔵
+
+---
+
+### TC-S8-TXT-02: Zero-Border Frameless Inline Text Editor
+* **Objective:** Verify that clicking the canvas with the Text tool creates an inline textarea that has zero artificial border, zero outline, transparent background, and matches canvas typography.
+* **Expected Result:**
+  - `#inlineTextEditor` style has `border: none`, `outline: none`, `background: transparent`, and inherits `fontSize`, `fontFamily`, and `color`.
+  - No Word-like bounding box appears during typing.
+* **Verification Status:** `PENDING` 🔵
+
+---
+
+### TC-S8-TXT-03: Seamless Non-Enter Text Commit (Blur / Click Outside)
+* **Objective:** Verify that typing text and clicking outside the editor (or triggering blur) commits the text element directly to canvas without requiring the user to press Enter.
+* **Test Steps:**
+  1. Activate Text tool and click at `(200, 300)`.
+  2. Type `"Microservices Core Architecture"`.
+  3. Click at `(500, 500)` without pressing Enter.
+* **Expected Result:**
+  - Text element with content `"Microservices Core Architecture"` is added to `elements`.
+  - Text appears on canvas immediately at `(200, 300)`.
+  - Undo stack records the creation.
+* **Verification Status:** `PENDING` 🔵
+
+---
+
+### TC-S8-TXT-04: Multiline Enter / Shift+Enter Support
+* **Objective:** Verify pressing `Enter` creates a natural newline in the text element instead of prematurely terminating editing.
+* **Test Steps:**
+  1. Open inline editor.
+  2. Type `"Line 1\nLine 2\nLine 3"`.
+  3. Blur editor.
+* **Expected Result:** Text element is created with 3 lines; `getElementBounds` computes multiline height accurately.
+* **Verification Status:** `PENDING` 🔵

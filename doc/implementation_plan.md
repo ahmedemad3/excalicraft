@@ -474,3 +474,107 @@ if (body.length > MAX_SIZE) {
 - [x] **Milestone 7.6: Repo Hygiene** (LICENSE, package.json, npm test, CI, img/ clean) (ISSUE-42, ISSUE-43, ISSUE-44, ISSUE-45)
 - [x] **Milestone 7.7: README Accuracy** (Terraform removed, autosave added, overclaims softened, terminology corrected) (ISSUE-36, ISSUE-46, ISSUE-47, ISSUE-48, ISSUE-49)
 - [x] **Milestone 7.8: Test Suites** (sprint7_test.js, sprint7_security_test.js, run_all.js)
+
+---
+
+# Sprint 8 — Advanced Architecture Modeling, Reverse DDL, Markdown Notes & True Canvas Text Experience (November 2026)
+
+## 8.1 Executive Scope & Strategic Vision
+Sprint 8 delivers four major capabilities that bridge the gap between architectural diagramming and real-world system design workflows:
+1. **SQL DDL → ERD Reverse Parser (FEAT-S8-01 / ISSUE-50)**: Ingest raw SQL schema definitions (`CREATE TABLE`, `ALTER TABLE ADD CONSTRAINT`, PK/FK, column types, nullability, unique) via drag-and-drop `.sql` files or modal paste, automatically laying out interactive ERD table cards on canvas with live relational foreign key connector arrows.
+2. **First-Class Markdown Notes (FEAT-S8-02 / ISSUE-51)**: Provide dedicated, rich architectural documentation cards (ADRs, runbooks, code snippets, checklists) and element-anchored sticky callouts with live Markdown parsing, collapsible header pills, and high-fidelity vector export support (SVG, PDF, GIF).
+3. **Directed Dominator Tree SPOF Analysis (FEAT-S8-03 / ISSUE-52)**: Upgrade from undirected articulation points to flow-directed dominance analysis (Lengauer-Tarjan / iterative dataflow), featuring interactive downstream blast-radius inspection and traffic-starvation path highlighting when selecting any node.
+4. **Authentic Excalidraw Text Tool & Input UX (FEAT-S8-04 / ISSUE-53)**:
+   - Replace toolbar 'T' text-box icon with authentic Excalidraw 'A' (letter A) icon.
+   - Remove the artificial Word-like bounding box border around text during editing.
+   - Eliminate the strict requirement to press Enter to commit text: typing directly on canvas, auto-resizing inline editor with zero frame, commit on blur / click outside, multiline support with Enter / Shift+Enter, and discard only on empty text.
+
+---
+
+## 8.2 Architectural Specifications & Technical Design
+
+### 8.2.1 SQL DDL → ERD Reverse Parser (`src/codegen.js` + `src/main.js`)
+- **Module**: `parseSqlDdl(sqlText)` in `src/codegen.js`.
+- **Dialect Coverage**: PostgreSQL, MySQL/MariaDB, SQLite, ANSI SQL.
+- **Parsing Pipeline**:
+  1. **Tokenizer & Cleaner**: Strip block comments (`/* ... */`), line comments (`--`), and backticks/quotes.
+  2. **Table Extractor**: Regex tokenizer identifying `CREATE TABLE [IF NOT EXISTS] <tableName> (...)`.
+  3. **Column Extractor**: Extract `<colName> <colType> [PRIMARY KEY] [NOT NULL] [UNIQUE] [DEFAULT ...] [REFERENCES ...]`.
+  4. **Table-level Constraints**: Parse `PRIMARY KEY (col1, col2)`, `FOREIGN KEY (fk_col) REFERENCES parent_table (pk_col)`, and `CONSTRAINT ...`.
+  5. **Auto-Layout & Referential Linking**:
+     - Compute grid-based layout offsets for generated `table` elements.
+     - For each resolved foreign key relationship, instantiate an `arrow` element with `startBinding` to parent table and `endBinding` to child table, marked with `label: "1:N"`, `isErdRel: true`, and `fkConstraintName`.
+- **UI Integration**:
+  - Drag-and-drop listener on canvas accepting `.sql` files.
+  - "Import SQL Schema" option in the top "Export/Import" modal.
+
+### 8.2.2 First-Class Markdown Notes (`src/renderer.js` + `src/export.js` + `src/main.js`)
+- **Element Definition**: `type: 'note-card'`, schema:
+  ```typescript
+  {
+    id: string;
+    type: 'note-card';
+    x: number; y: number; width: number; height: number;
+    title: string;              // e.g. "ADR-004: Payment Idempotency"
+    markdownContent: string;    // Full Markdown body
+    isCollapsed: boolean;       // If true, renders as single-line title pill
+    attachedToElementId?: string; // Optional anchor to a service/DB node
+    theme: 'yellow-sticky' | 'dark-slate' | 'clean-white' | 'glass';
+  }
+  ```
+- **Lightweight Markdown Parser**: Renders headers (`#`, `##`, `###`), bold/italic (`**`, `*`), bullet lists (`- `), task checkboxes (`- [x]`), inline code (`` `code` ``), and fenced code blocks (` ``` `) with syntax styling.
+- **Attached Sticky Callouts**: When `attachedToElementId` is present, the note tracks the host node's position on canvas movements.
+- **Export Engine**:
+  - `exportToSvg`: Emits `<foreignObject>` for modern vector viewers with structured `<text>`/`<rect>` vector fallbacks.
+  - `exportToPdf`: Emits crisp vector text blocks maintaining pagination bounds.
+
+### 8.2.3 Directed Dominator Tree SPOF Engine (`src/graph.js` + `src/renderer.js` + `src/main.js`)
+- **Module**: `computeDominatorTree(rootId)` and `getBlastRadius(nodeId)` in `src/graph.js`.
+- **Mathematical Foundation**:
+  - A node $D$ dominates $N$ ($D \text{ dom } N$) with respect to ingress root $R$ if every directed path from $R$ to $N$ must pass through $D$.
+  - Constructs the Immediate Dominator ($idom$) tree using iterative dataflow or Lengauer-Tarjan algorithm.
+- **Interactive Blast Radius UI**:
+  - In Flow Simulation Mode (`Ctrl+Shift+O`), hovering or clicking a node highlights its **Dominance Subtree**.
+  - All nodes dominated by the selected node are outlined with a pulsing crimson **Blast Radius Aura**; non-affected components fade to 25% opacity.
+  - Saturated flow arrows entering dominated nodes show `0 QPS (Starved)`.
+  - Inspector displays exact metric: `Blast Radius: X% of downstream infrastructure affected`.
+
+### 8.2.4 Authentic Excalidraw Text Tool & Input UX (`index.html` + `src/main.js` + `src/style.css` + `src/renderer.js`)
+- **Toolbar Icon Modernization**:
+  - Replace the framed Word-like `T` button in `index.html` with an authentic clean letter `A` vector icon matching Excalidraw standards.
+- **Frameless Inline Text Editor**:
+  - Redesign `#inlineTextEditor` in `src/style.css`: remove artificial input borders, background shadows, and box outlines.
+  - Text editor inherits exact canvas zoom, canvas coordinates, font family (`Outfit`, `Caveat`, `JetBrains Mono`), font size, color, and line height.
+  - Editor automatically grows in width and height dynamically as the user types (`textarea.style.height = textarea.scrollHeight + 'px'`).
+- **Commit & Keyboard Ergonomics**:
+  - **No strict Enter requirement**: Clicking anywhere outside the text editor or blurring the textarea immediately commits the text to canvas.
+  - Pressing `Enter` adds a natural multiline newline (matching Excalidraw).
+  - Pressing `Escape` commits if non-empty, or cancels if empty.
+  - Single-line and multiline text render cleanly without any artificial bounding box frame on canvas.
+
+---
+
+## 8.3 Delivery Milestones & Checkpoints (Sprint 8)
+
+- [ ] **Milestone 8.1: SQL DDL Reverse Parser** (`src/codegen.js` + `src/main.js`)
+  - [ ] Lexer and tokenizer for `CREATE TABLE`, column types, PKs, FKs, constraints.
+  - [ ] Auto-scaffolding of ERD cards on canvas with relational arrows.
+  - [ ] File drop (`.sql`) and modal import support.
+- [ ] **Milestone 8.2: First-Class Markdown Notes** (`src/renderer.js` + `src/export.js` + `src/main.js`)
+  - [ ] Element schema `type: 'note-card'` with markdown token parser.
+  - [ ] Canvas rendering of cards, code blocks, task checkboxes, and collapsed pills.
+  - [ ] Element attachment anchor tracking host movements.
+  - [ ] High-fidelity SVG, PDF, PNG, and GIF export.
+- [ ] **Milestone 8.3: Directed Dominator Tree SPOF Engine** (`src/graph.js` + `src/renderer.js` + `src/main.js`)
+  - [ ] Immediate dominator ($idom$) tree calculation from entrypoint roots.
+  - [ ] Blast radius calculation (`getBlastRadius(nodeId)`).
+  - [ ] Interactive UI highlighting (dimming unaffected, glowing severed downstream components, 0 QPS starved flow).
+- [ ] **Milestone 8.4: Authentic Excalidraw Text Tool & Seamless Input** (`index.html` + `src/main.js` + `src/style.css` + `src/renderer.js`)
+  - [ ] Replace toolbar button `T` icon with clean letter `A` icon.
+  - [ ] Zero-border frameless textarea inheriting canvas typography and scaling.
+  - [ ] Blur/click-outside commit without mandatory Enter keypress.
+  - [ ] Multiline Enter / Shift+Enter support.
+- [ ] **Milestone 8.5: Sprint 8 Verification & Security Test Suites**
+  - [ ] `tests/sprint8_test.js` covering SQL reverse parsing, Markdown notes, Dominator Tree, and Text tool.
+  - [ ] `tests/sprint8_security_test.js` covering SQL parser ReDoS, Markdown XSS sanitization, cycle safety, and DOM input integrity.
+  - [ ] Integration with `tests/run_all.js` (`npm test`).
