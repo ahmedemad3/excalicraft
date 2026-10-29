@@ -21,7 +21,8 @@ const testSuites = [
   'elbow_arrow_test.js',
   'image_ctrls_test.js',
   'sprint7_test.js',
-  'sprint7_security_test.js'
+  'sprint7_security_test.js',
+  'sprint8_test.js'
 ];
 
 console.log('================================================================');

@@ -430,3 +430,338 @@ export async function copySqlToClipboard(sqlContent) {
   document.body.removeChild(textarea);
   return success;
 }
+
+/**
+ * ============================================================================
+ * Sprint 8: SQL DDL -> ERD Reverse Parser (Milestone 8.1 & ISSUE-50)
+ * Parses PostgreSQL, MySQL, and ANSI SQL DDL statements (CREATE TABLE)
+ * into interactive on-canvas ERD tables with PK/FK relational arrow links.
+ * Implements SEC-S8-01 (Bounded input, safe regexes, no catastrophic backtracking).
+ * ============================================================================
+ */
+
+/**
+ * Splits a SQL definition string by top-level commas (ignoring commas inside parentheses).
+ * @param {string} str
+ * @returns {string[]}
+ */
+function splitTopLevelCommas(str) {
+  const result = [];
+  let current = '';
+  let depth = 0;
+  let inQuote = false;
+  let quoteChar = '';
+
+  for (let i = 0; i < str.length; i++) {
+    const char = str[i];
+
+    if (!inQuote && (char === '"' || char === '`' || char === "'")) {
+      inQuote = true;
+      quoteChar = char;
+      current += char;
+    } else if (inQuote && char === quoteChar) {
+      inQuote = false;
+      current += char;
+    } else if (!inQuote && char === '(') {
+      depth++;
+      current += char;
+    } else if (!inQuote && char === ')') {
+      depth = Math.max(0, depth - 1);
+      current += char;
+    } else if (!inQuote && char === ',' && depth === 0) {
+      if (current.trim()) result.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+
+  if (current.trim()) {
+    result.push(current.trim());
+  }
+
+  return result;
+}
+
+/**
+ * Unquotes and cleans a SQL table or column identifier.
+ * @param {string} raw
+ * @returns {string}
+ */
+function unquoteSqlIdentifier(raw) {
+  if (!raw) return '';
+  let cleaned = raw.trim();
+  // Strip schema prefix if present e.g. public.users -> users
+  if (cleaned.includes('.')) {
+    const parts = cleaned.split('.');
+    cleaned = parts[parts.length - 1];
+  }
+  // Strip quotes/backticks/brackets
+  cleaned = cleaned.replace(/^[`"'\[]+|[`"'\]]+$/g, '').trim();
+  return cleaned;
+}
+
+/**
+ * Parses raw SQL DDL script and generates ERD table elements and relational connectors.
+ * @param {string} sqlContent - Raw SQL text containing CREATE TABLE statements
+ * @param {Object} [options]
+ * @param {number} [options.startX=80] - Starting canvas X coordinate
+ * @param {number} [options.startY=100] - Starting canvas Y coordinate
+ * @returns {{ elements: Array<Object>, tablesCount: number, relationshipsCount: number, warnings: Array<string> }}
+ */
+export function parseSqlToErd(sqlContent, options = {}) {
+  const warnings = [];
+  if (!sqlContent || typeof sqlContent !== 'string') {
+    return { elements: [], tablesCount: 0, relationshipsCount: 0, warnings: ['Empty SQL content provided.'] };
+  }
+
+  // SEC-S8-01: Hard payload ceiling (5MB)
+  if (sqlContent.length > 5 * 1024 * 1024) {
+    throw new Error('SQL file exceeds the 5MB security limit.');
+  }
+
+  // 1. Strip multi-line comments /* ... */ and single-line comments -- ...
+  let cleanSql = sqlContent
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/--.*$/gm, ' ')
+    .replace(/#.*$/gm, ' ');
+
+  // 2. Extract CREATE TABLE statements with balanced parenthesis parser
+  const startRegex = /CREATE\s+TABLE(?:\s+IF\s+NOT\s+EXISTS)?\s+([`"'\w\.]+)\s*\(/gi;
+
+  const parsedTables = [];
+  const foreignKeys = [];
+
+  let match;
+  while ((match = startRegex.exec(cleanSql)) !== null) {
+    if (parsedTables.length >= 200) {
+      warnings.push('Table limit reached: Maximum 200 tables imported.');
+      break;
+    }
+
+    const rawTableName = match[1];
+    let depth = 1;
+    let idx = startRegex.lastIndex;
+    let inQuote = null;
+    const bodyStart = idx;
+
+    while (idx < cleanSql.length && depth > 0) {
+      const ch = cleanSql[idx];
+      if (inQuote) {
+        if (ch === inQuote) {
+          if (cleanSql[idx + 1] === inQuote) {
+            idx++;
+          } else {
+            inQuote = null;
+          }
+        }
+      } else {
+        if (ch === "'" || ch === '"' || ch === '`') {
+          inQuote = ch;
+        } else if (ch === '(') {
+          depth++;
+        } else if (ch === ')') {
+          depth--;
+        }
+      }
+      idx++;
+    }
+
+    const tableBody = cleanSql.substring(bodyStart, idx - 1);
+    startRegex.lastIndex = idx;
+    const tableName = unquoteSqlIdentifier(rawTableName);
+
+    if (!tableName) continue;
+
+    const columns = [];
+    const tablePkColumns = new Set();
+    const clauses = splitTopLevelCommas(tableBody);
+
+    // Pass 1: Scan for table-level PRIMARY KEY and FOREIGN KEY constraints
+    for (const clause of clauses) {
+      const trimmed = clause.trim();
+      const upper = trimmed.toUpperCase();
+
+      // Table Constraint: [CONSTRAINT <name>] PRIMARY KEY (col1, col2)
+      const pkMatch = trimmed.match(/(?:CONSTRAINT\s+[`"'\w]+\s+)?PRIMARY\s+KEY\s*\(([^)]+)\)/i);
+      if (pkMatch) {
+        const pkCols = pkMatch[1].split(',').map(c => unquoteSqlIdentifier(c));
+        pkCols.forEach(col => tablePkColumns.add(col.toLowerCase()));
+        continue;
+      }
+
+      // Table Constraint: [CONSTRAINT <name>] FOREIGN KEY (fk_col) REFERENCES other_table(other_col)
+      const fkMatch = trimmed.match(/(?:CONSTRAINT\s+[`"'\w]+\s+)?FOREIGN\s+KEY\s*\(([^)]+)\)\s*REFERENCES\s+([`"'\w\.]+)\s*\(([^)]+)\)/i);
+      if (fkMatch) {
+        const fkCol = unquoteSqlIdentifier(fkMatch[1]);
+        const targetTable = unquoteSqlIdentifier(fkMatch[2]);
+        const targetCol = unquoteSqlIdentifier(fkMatch[3]);
+        foreignKeys.push({
+          childTable: tableName,
+          childColumn: fkCol,
+          parentTable: targetTable,
+          parentColumn: targetCol
+        });
+        continue;
+      }
+
+      // Ignore standard auxiliary table constraints
+      if (upper.startsWith('CONSTRAINT') || upper.startsWith('UNIQUE') || upper.startsWith('KEY') || upper.startsWith('INDEX') || upper.startsWith('CHECK')) {
+        continue;
+      }
+
+      // Column definition: <name> <type> [attributes...]
+      const colMatch = trimmed.match(/^([`"'\w]+)\s+([a-zA-Z0-9_\(\)]+)([\s\S]*)$/);
+      if (colMatch) {
+        const colName = unquoteSqlIdentifier(colMatch[1]);
+        const colType = colMatch[2].toLowerCase();
+        const colAttrs = colMatch[3] || '';
+        const attrsUpper = colAttrs.toUpperCase();
+
+        let keyType = null;
+        if (attrsUpper.includes('PRIMARY KEY')) {
+          keyType = 'PK';
+          tablePkColumns.add(colName.toLowerCase());
+        }
+
+        // Inline REFERENCES clause: col_name TYPE REFERENCES other_table(col)
+        const inlineFkMatch = colAttrs.match(/REFERENCES\s+([`"'\w\.]+)\s*\(([^)]+)\)/i);
+        if (inlineFkMatch) {
+          if (!keyType) keyType = 'FK';
+          foreignKeys.push({
+            childTable: tableName,
+            childColumn: colName,
+            parentTable: unquoteSqlIdentifier(inlineFkMatch[1]),
+            parentColumn: unquoteSqlIdentifier(inlineFkMatch[2])
+          });
+        }
+
+        columns.push({
+          key: keyType,
+          name: colName,
+          type: colType
+        });
+      }
+    }
+
+    // Pass 2: Mark primary keys from table-level constraints
+    columns.forEach(col => {
+      if (tablePkColumns.has(col.name.toLowerCase())) {
+        col.key = 'PK';
+      }
+    });
+
+    parsedTables.push({
+      tableName,
+      columns
+    });
+  }
+
+  // Pass 3: Mark foreign keys in column lists
+  foreignKeys.forEach(fk => {
+    const table = parsedTables.find(t => t.tableName.toLowerCase() === fk.childTable.toLowerCase());
+    if (table) {
+      const col = table.columns.find(c => c.name.toLowerCase() === fk.childColumn.toLowerCase());
+      if (col && !col.key) {
+        col.key = 'FK';
+      }
+    }
+  });
+
+  if (parsedTables.length === 0) {
+    return {
+      elements: [],
+      tablesCount: 0,
+      relationshipsCount: 0,
+      warnings: ['No valid CREATE TABLE statements detected in SQL content.']
+    };
+  }
+
+  // 3. Generate on-canvas ERD table elements with organized grid layout
+  const elements = [];
+  const tableIdMap = new Map(); // tableName.toLowerCase() -> elementId
+  const startX = options.startX !== undefined ? options.startX : 80;
+  const startY = options.startY !== undefined ? options.startY : 100;
+  const colWidth = 280;
+  const colSpacing = 360;
+  const rowSpacing = 280;
+  const colsPerRow = 3;
+
+  parsedTables.forEach((table, index) => {
+    const gridCol = index % colsPerRow;
+    const gridRow = Math.floor(index / colsPerRow);
+    const tableX = startX + gridCol * colSpacing;
+    const tableY = startY + gridRow * rowSpacing;
+    const tableHeight = Math.max(140, 52 + table.columns.length * 24);
+    const elementId = `erd-table-${Date.now()}-${index}`;
+
+    tableIdMap.set(table.tableName.toLowerCase(), {
+      id: elementId,
+      x: tableX,
+      y: tableY,
+      width: colWidth,
+      height: tableHeight
+    });
+
+    elements.push({
+      id: elementId,
+      type: 'erd-table',
+      x: tableX,
+      y: tableY,
+      width: colWidth,
+      height: tableHeight,
+      tableName: table.tableName,
+      tableType: 'TABLE',
+      themeColor: '#336791',
+      columns: table.columns.map(c => ({
+        key: c.key,
+        name: c.name,
+        type: c.type,
+        isPk: c.key === 'PK',
+        isFk: c.key === 'FK'
+      })),
+      seed: Math.floor(Math.random() * 2000000000)
+    });
+  });
+
+  // 4. Generate relational connectors for Foreign Keys
+  let relationshipsCreated = 0;
+  foreignKeys.forEach((fk, idx) => {
+    const parent = tableIdMap.get(fk.parentTable.toLowerCase());
+    const child = tableIdMap.get(fk.childTable.toLowerCase());
+
+    if (parent && child && parent.id !== child.id) {
+      // Connect parent (PK) to child (FK)
+      const isParentLeft = parent.x < child.x;
+      const startPointX = isParentLeft ? parent.x + parent.width : parent.x;
+      const startPointY = parent.y + 40;
+      const endPointX = isParentLeft ? child.x : child.x + child.width;
+      const endPointY = child.y + 40;
+
+      elements.push({
+        id: `fk-arrow-${Date.now()}-${idx}`,
+        type: 'arrow',
+        x: startPointX,
+        y: startPointY,
+        width: endPointX - startPointX,
+        height: endPointY - startPointY,
+        routing: 'orthogonal',
+        label: `FK: ${fk.childColumn} -> ${fk.parentColumn}`,
+        direction: 'forward',
+        strokeColor: '#336791',
+        isAnimated: true,
+        startBinding: { elementId: parent.id, focus: 0, gap: 4 },
+        endBinding: { elementId: child.id, focus: 0, gap: 4 },
+        seed: Math.floor(Math.random() * 2000000000)
+      });
+      relationshipsCreated++;
+    }
+  });
+
+  return {
+    elements,
+    tablesCount: parsedTables.length,
+    relationshipsCount: relationshipsCreated,
+    warnings
+  };
+}

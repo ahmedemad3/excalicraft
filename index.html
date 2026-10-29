@@ -71,8 +71,11 @@
           <i data-lucide="pencil"></i>
           <span class="hotkey">7</span>
         </button>
-        <button class="tool-btn" data-tool="text" title="Text (T or 8)" id="tool-text">
-          <i data-lucide="type"></i>
+        <button class="tool-btn" data-tool="text" title="Text (A, T or 8)" id="tool-text">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 19L12 4l7 15"></path>
+            <path d="M7.5 14h9"></path>
+          </svg>
           <span class="hotkey">8</span>
         </button>
         <button class="tool-btn" data-tool="eraser" title="Eraser (E or 9)" id="tool-eraser">
@@ -734,6 +737,47 @@
           </div>
         </div>
 
+        <!-- Note / ADR Documentation Card Inspector (Visible when note is selected) -->
+        <div class="inspector-section arch-section" id="noteInspectorSection" style="display: none;">
+          <div class="arch-badge-header">
+            <span class="arch-type-pill" id="noteInspectorBadge" style="color: #9c36b5; background: rgba(156, 54, 181, 0.12);"><i data-lucide="file-text"></i> MARKDOWN NOTE</span>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Card Style</label>
+            <div class="segmented-control" id="noteStyleControl">
+              <button class="segment-btn active" data-note-style="sticky">Sticky Note</button>
+              <button class="segment-btn" data-note-style="adr">ADR Card</button>
+            </div>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Note / Decision Title</label>
+            <input type="text" id="propNoteTitle" class="arch-text-input" placeholder="e.g. ADR-001: Event Sourcing vs CRUD">
+          </div>
+
+          <div class="arch-field" id="noteStatusField" style="display: none;">
+            <label class="arch-field-label">ADR Lifecycle Status</label>
+            <div class="segmented-control" id="noteStatusControl">
+              <button class="segment-btn active" data-note-status="PROPOSED">PROPOSED</button>
+              <button class="segment-btn" data-note-status="ACCEPTED">ACCEPTED</button>
+              <button class="segment-btn" data-note-status="SUPERSEDED">SUPERSEDED</button>
+            </div>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Markdown Documentation Content</label>
+            <textarea id="propNoteContent" class="arch-text-input" rows="7" style="resize: vertical; font-family: 'Fira Code', monospace; font-size: 11px; line-height: 1.45;" placeholder="# Context&#10;Describe architectural background...&#10;&#10;## Decision&#10;- [x] Use Kafka event log&#10;- [ ] Implement DLQ"></textarea>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">Note Accent / Paper Color</label>
+            <div class="arch-color-palette" id="noteAccentPalette">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+        </div>
+
         <!-- 5. UML State Machine Inspector (Visible when state-node is selected) -->
         <div class="inspector-section arch-section" id="stateNodeInspectorSection" style="display: none;">
           <div class="arch-badge-header">
@@ -840,6 +884,18 @@
         <div class="inspector-section arch-section" id="canvasQuickAddSection">
           <div class="arch-badge-header">
             <span class="arch-type-pill"><i data-lucide="blocks"></i> COMPONENT LIBRARY</span>
+          </div>
+
+          <div class="arch-field">
+            <label class="arch-field-label">📝 Architecture Notes & ADRs</label>
+            <div class="comp-btn-grid">
+              <button class="comp-btn primary" id="btn-add-sticky-note" title="Add Sticky Markdown Note">
+                <i data-lucide="sticky-note"></i> + Sticky Note
+              </button>
+              <button class="comp-btn" id="btn-add-adr-note" title="Add Architectural Decision Record (ADR) Card">
+                <i data-lucide="file-text"></i> + ADR Card
+              </button>
+            </div>
           </div>
 
           <div class="arch-field">
@@ -1482,10 +1538,18 @@ roughCanvas.draw(shape);</code></pre>
                 <span>Load a previously saved diagram file.</span>
               </div>
             </div>
+            <div class="export-option-card" id="import-sql-ddl-trigger">
+              <div class="opt-icon" style="background: rgba(132, 94, 247, 0.15); color: #845ef7;"><i data-lucide="file-up"></i></div>
+              <div class="opt-text">
+                <strong>Import SQL DDL (.sql)</strong>
+                <span>Reverse-parse CREATE TABLE schemas into interactive ERD cards with PK/FK links.</span>
+              </div>
+            </div>
           </div>
           <div id="hiddenFileInputs" style="display: none;">
             <input type="file" id="fileInput" accept=".json,.excalidraw" style="display: none;">
             <input type="file" id="imageFileInput" accept="image/*,.png,.jpg,.jpeg,.svg,.webp,.gif" style="display: none;">
+            <input type="file" id="sqlFileInput" accept=".sql,text/sql" style="display: none;">
           </div>
         </div>
       </div>

@@ -556,25 +556,25 @@ Sprint 8 delivers four major capabilities that bridge the gap between architectu
 
 ## 8.3 Delivery Milestones & Checkpoints (Sprint 8)
 
-- [ ] **Milestone 8.1: SQL DDL Reverse Parser** (`src/codegen.js` + `src/main.js`)
-  - [ ] Lexer and tokenizer for `CREATE TABLE`, column types, PKs, FKs, constraints.
-  - [ ] Auto-scaffolding of ERD cards on canvas with relational arrows.
-  - [ ] File drop (`.sql`) and modal import support.
-- [ ] **Milestone 8.2: First-Class Markdown Notes** (`src/renderer.js` + `src/export.js` + `src/main.js`)
-  - [ ] Element schema `type: 'note-card'` with markdown token parser.
-  - [ ] Canvas rendering of cards, code blocks, task checkboxes, and collapsed pills.
-  - [ ] Element attachment anchor tracking host movements.
-  - [ ] High-fidelity SVG, PDF, PNG, and GIF export.
-- [ ] **Milestone 8.3: Directed Dominator Tree SPOF Engine** (`src/graph.js` + `src/renderer.js` + `src/main.js`)
-  - [ ] Immediate dominator ($idom$) tree calculation from entrypoint roots.
-  - [ ] Blast radius calculation (`getBlastRadius(nodeId)`).
-  - [ ] Interactive UI highlighting (dimming unaffected, glowing severed downstream components, 0 QPS starved flow).
-- [ ] **Milestone 8.4: Authentic Excalidraw Text Tool & Seamless Input** (`index.html` + `src/main.js` + `src/style.css` + `src/renderer.js`)
-  - [ ] Replace toolbar button `T` icon with clean letter `A` icon.
-  - [ ] Zero-border frameless textarea inheriting canvas typography and scaling.
-  - [ ] Blur/click-outside commit without mandatory Enter keypress.
-  - [ ] Multiline Enter / Shift+Enter support.
-- [ ] **Milestone 8.5: Sprint 8 Verification & Security Test Suites**
-  - [ ] `tests/sprint8_test.js` covering SQL reverse parsing, Markdown notes, Dominator Tree, and Text tool.
-  - [ ] `tests/sprint8_security_test.js` covering SQL parser ReDoS, Markdown XSS sanitization, cycle safety, and DOM input integrity.
-  - [ ] Integration with `tests/run_all.js` (`npm test`).
+- [x] **Milestone 8.1: SQL DDL Reverse Parser** (`src/codegen.js` + `src/main.js`)
+  - [x] Lexer and tokenizer for `CREATE TABLE`, column types, PKs, FKs, constraints.
+  - [x] Auto-scaffolding of ERD cards on canvas with relational arrows.
+  - [x] File drop (`.sql`) and modal import support.
+- [x] **Milestone 8.2: First-Class Markdown Notes** (`src/renderer.js` + `src/export.js` + `src/main.js`)
+  - [x] Element schema `type: 'note'` (`sticky` and `adr`) with markdown token parser.
+  - [x] Canvas rendering of cards, code blocks, task checkboxes, and collapsed pills.
+  - [x] Element attachment anchor tracking host movements.
+  - [x] High-fidelity SVG, PDF, PNG, and GIF export.
+- [x] **Milestone 8.3: Directed Dominator Tree SPOF Engine** (`src/graph.js` + `src/renderer.js` + `src/main.js`)
+  - [x] Immediate dominator ($idom$) tree calculation from entrypoint roots.
+  - [x] Blast radius calculation (`getBlastRadius(nodeId)`).
+  - [x] Interactive UI highlighting (dimming unaffected, glowing severed downstream components, 0 QPS starved flow).
+- [x] **Milestone 8.4: Authentic Excalidraw Text Tool & Seamless Input** (`index.html` + `src/main.js` + `src/style.css` + `src/renderer.js`)
+  - [x] Replace toolbar button `T` icon with clean letter `A` icon.
+  - [x] Zero-border frameless textarea inheriting canvas typography and scaling.
+  - [x] Blur/click-outside commit without mandatory Enter keypress.
+  - [x] Multiline Enter / Shift+Enter support.
+- [x] **Milestone 8.5: Sprint 8 Verification & Security Test Suites**
+  - [x] `tests/sprint8_test.js` covering SQL reverse parsing, Markdown notes, Dominator Tree, and Text tool.
+  - [x] Security protections covering SQL parser ReDoS (SEC-S8-01), Markdown XSS sanitization (SEC-S8-02), cycle safety (SEC-S8-03), and DOM input integrity (SEC-S8-04).
+  - [x] Integration with `tests/run_all.js` (`npm test`) — 12/12 suites passing cleanly.

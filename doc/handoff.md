@@ -195,3 +195,46 @@ Sprint 7 addressed all 15 findings identified in the external review (`doc/excal
 3. **Repository State**:
    - Active Git branch: `fix-issues`
    - All 49 tracked issues in `doc/issues.md` are marked `🟢 Resolved`.
+
+---
+
+## 6. Sprint 8 Engineering Handoff & Quality Assurance (October 29, 2026)
+
+### 6.1 Sprint 8 Objectives & Scope
+Sprint 8 delivered 4 major system capabilities tracked as **ISSUE-50** through **ISSUE-53** in `doc/issues.md`:
+1. **Milestone 8.1 / ISSUE-50**: SQL DDL → ERD Reverse Parser (drag-and-drop `.sql` ingestion with PK/FK links and relational orthogonal arrow connectors).
+2. **Milestone 8.2 / ISSUE-51**: First-Class Markdown Notes & ADR Cards (`sticky` and `adr` cardStyles, folded corner, accent bars, status badges, SVG/canvas export).
+3. **Milestone 8.3 / ISSUE-52**: Directed Dominator Tree SPOF & Downstream Blast Radius Highlighting (iterative dataflow dominator solver, real-time halo and downstream count badge).
+4. **Milestone 8.4 / ISSUE-53**: Authentic Excalidraw Text Tool & Input UX (clean Letter `A` icon, borderless floating textarea, non-Enter canvas click-outside commit, multiline Enter support).
+
+### 6.2 Key Deliverables & Technical Changes
+
+| Issue ID | Area | Resolution Details | Artifacts Changed |
+| :--- | :--- | :--- | :--- |
+| **ISSUE-50** | Interoperability / DDL | Implemented `parseSqlToErd()` with depth-balanced parenthesis scanner handling column types with arguments (`VARCHAR(255)`, `DECIMAL(10,2)`), PostgreSQL/MySQL backtick dialects, table/column PK/FK constraints, and automatic orthogonal relational arrow connectors. Enforced 5MB size limit (SEC-S8-01). Wired dropzone and modal file input. | `src/codegen.js`, `src/main.js`, `index.html` |
+| **ISSUE-51** | Modeling / Docs | Added `'note'` element type with `sticky` and `adr` cardStyles. Implemented `renderNoteCard()` on canvas, note properties inspector dock, quick-add buttons, and vector SVG note export with XML entity escaping and inline event handler sanitization (SEC-S8-02). | `src/renderer.js`, `src/export.js`, `src/main.js`, `index.html` |
+| **ISSUE-52** | Architecture / Reliability | Implemented `computeDominatorTree()` with 50-iteration safeguard against pathological cycles (SEC-S8-03). Implemented `getBlastRadius()`. Visualized real-time amber dashed blast radius halo and downstream count badge on canvas when metrics overlay is active. | `src/graph.js`, `src/renderer.js`, `src/main.js` |
+| **ISSUE-53** | Canvas / UX & Typography | Replaced boxed `T` toolbar icon with authentic Excalidraw typography Letter `A`. Re-styled `#inlineTextEditor` to borderless/transparent. Implemented synchronous commit on canvas click-outside in `onPointerDown`, allowing Enter for newlines and Escape/blur for clean commit. | `index.html`, `src/style.css`, `src/main.js` |
+
+### 6.3 Verification & Quality Assurance Summary
+
+1. **Master Test Suite Execution (`npm test`)**:
+   - Total test suites: **12 suites**
+   - Passed: **12 suites (100% SUCCESS)**
+   - All 13 tests in `tests/sprint8_test.js` passed cleanly:
+     - `TC-S8-SQL-01`: Standard PostgreSQL CREATE TABLE with PK/FK.
+     - `TC-S8-SQL-02`: MySQL backtick dialect and table CONSTRAINT clauses.
+     - `TC-S8-SQL-03`: Security ceiling - rejects payloads exceeding 5MB (SEC-S8-01).
+     - `TC-S8-NOTE-01`: Note SVG serialization with sticky card styling and markdown.
+     - `TC-S8-NOTE-02`: ADR card with status badge (`ACCEPTED`).
+     - `TC-S8-NOTE-03`: XML character escaping and inline handler sanitization in Markdown notes (SEC-S8-02).
+     - `TC-S8-DOM-01`: Linear Chain Dominance: A -> B -> C.
+     - `TC-S8-DOM-02`: Diamond Redundant Paths: A -> (B, C) -> D removes SPOF.
+     - `TC-S8-DOM-03`: Directed SPOF identification and detection iteration guard (SEC-S8-03).
+     - `TC-S8-TXT-01`: Letter A toolbar icon presence.
+     - `TC-S8-TXT-02`: Borderless floating text editor CSS.
+     - `TC-S8-TXT-03`: Canvas click-outside commit function.
+     - `TC-S8-TXT-04`: Multiline text support with Enter/Escape/Blur.
+2. **Repository State**:
+   - Active Git branch: `sprint-8`
+   - All 53 tracked issues in `doc/issues.md` are marked `🟢 Resolved`.

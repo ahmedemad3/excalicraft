@@ -81,6 +81,7 @@ export class SceneRenderer {
     previewElement = null,
     metricsOverlay = false,
     spofNodeIds = null,
+    blastRadiusNodeIds = null,
     capacityMetrics = null,
     canvasBackground = null
   }) {
@@ -88,7 +89,7 @@ export class SceneRenderer {
     const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
     const width = this.width || this.canvas.clientWidth || (this.canvas.width ? this.canvas.width / dpr : 1920);
     const height = this.height || this.canvas.clientHeight || (this.canvas.height ? this.canvas.height / dpr : 1080);
-    const renderOptions = { metricsOverlay, spofNodeIds, capacityMetrics };
+    const renderOptions = { metricsOverlay, spofNodeIds, blastRadiusNodeIds, capacityMetrics };
 
     // 1. Clear background
     ctx.save();
@@ -220,6 +221,13 @@ export class SceneRenderer {
     // 6. Group / Container Boundary
     if (element.type === 'group-boundary') {
       this.renderGroupBoundary(element, theme, options);
+      ctx.restore();
+      return;
+    }
+
+    // 6.5 Architectural Markdown Note & Sticky Callout (Sprint 8)
+    if (element.type === 'note') {
+      this.renderNoteCard(element, theme, options);
       ctx.restore();
       return;
     }
@@ -524,6 +532,42 @@ export class SceneRenderer {
       ctx.strokeStyle = '#fa5252';
       ctx.lineWidth = 2.5;
       ctx.stroke();
+      ctx.restore();
+    }
+
+    // Blast radius downstream highlighting (Flow-Directed Dominator Tree / Sprint 8)
+    if (options && options.metricsOverlay && options.blastRadiusNodeIds && options.blastRadiusNodeIds.has(element.id)) {
+      ctx.save();
+      ctx.beginPath();
+      if (typeof ctx.roundRect === 'function') {
+        ctx.roundRect(x - 3, y - 3, width + 6, height + 6, 10);
+      } else {
+        ctx.rect(x - 3, y - 3, width + 6, height + 6);
+      }
+      ctx.strokeStyle = '#f59f00';
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([5, 5]);
+      ctx.stroke();
+
+      // Mini badge at bottom-right
+      ctx.font = "600 10px 'Outfit', sans-serif";
+      const bText = "💥 BLAST RADIUS (DOWNSTREAM)";
+      const bMetrics = ctx.measureText(bText);
+      const bW = bMetrics.width + 12;
+      const bH = 18;
+      const bX = x + width - bW;
+      const bY = y + height + 4;
+      ctx.fillStyle = 'rgba(245, 159, 0, 0.95)';
+      ctx.beginPath();
+      if (typeof ctx.roundRect === 'function') {
+        ctx.roundRect(bX, bY, bW, bH, 4);
+      } else {
+        ctx.rect(bX, bY, bW, bH);
+      }
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(bText, bX + 6, bY + bH / 2);
       ctx.restore();
     }
 
@@ -967,6 +1011,255 @@ export class SceneRenderer {
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
       ctx.fillText(col.type, x + width - 12, rowY + 6);
+    }
+
+    ctx.restore();
+  }
+
+  /**
+   * Sprint 8: Architectural Markdown Note & Sticky Callout (Milestone 8.2 & ISSUE-51)
+   */
+  renderNoteCard(element, theme, options = {}) {
+    const ctx = this.ctx;
+    const isDark = theme === 'dark';
+    const subType = element.subType || 'sticky';
+    const x = element.x;
+    const y = element.y;
+    const width = element.width || 240;
+    const height = element.height || 200;
+    const accentColor = element.themeColor || (subType === 'adr' ? '#1971c2' : '#fab005');
+    const r = 8;
+
+    ctx.save();
+
+    if (subType === 'sticky') {
+      // Warm yellow/pastel sticky note with slight dog-ear fold in top right
+      const foldSize = 20;
+      const bg = element.backgroundColor || (isDark ? '#373a40' : '#fff9db');
+      const border = isDark ? '#5c5f66' : '#fcc419';
+
+      // Drop shadow
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.12)';
+      ctx.shadowBlur = 10;
+      ctx.shadowOffsetX = 3;
+      ctx.shadowOffsetY = 4;
+
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + width - foldSize, y);
+      ctx.lineTo(x + width, y + foldSize);
+      ctx.lineTo(x + width, y + height - r);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+      ctx.lineTo(x + r, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+      ctx.fillStyle = bg;
+      ctx.fill();
+
+      // Reset shadow for stroke & fold
+      ctx.shadowColor = 'transparent';
+      ctx.strokeStyle = border;
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      // Dog-ear fold triangle
+      ctx.beginPath();
+      ctx.moveTo(x + width - foldSize, y);
+      ctx.lineTo(x + width - foldSize, y + foldSize);
+      ctx.lineTo(x + width, y + foldSize);
+      ctx.closePath();
+      ctx.fillStyle = isDark ? '#2c2e33' : '#fef08a';
+      ctx.fill();
+      ctx.strokeStyle = border;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Render Title & Content
+      let curY = y + 18;
+      if (element.title) {
+        ctx.font = "700 14px 'Virgil', sans-serif";
+        ctx.fillStyle = isDark ? '#f8f9fa' : '#212529';
+        ctx.textAlign = 'left';
+        ctx.fillText(element.title, x + 16, curY, width - 36);
+        curY += 22;
+
+        ctx.beginPath();
+        ctx.moveTo(x + 16, curY - 6);
+        ctx.lineTo(x + width - 16, curY - 6);
+        ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+        ctx.stroke();
+      }
+
+      // Markdown lines
+      const content = String(element.content || element.text || '');
+      const lines = content.split('\n');
+      ctx.textAlign = 'left';
+
+      for (const rawLine of lines) {
+        if (curY > y + height - 16) break;
+        const line = rawLine.trim();
+        if (!line) {
+          curY += 10;
+          continue;
+        }
+
+        if (line.startsWith('# ')) {
+          ctx.font = "700 14px 'Virgil', sans-serif";
+          ctx.fillStyle = isDark ? '#ffffff' : '#000000';
+          ctx.fillText(line.substring(2), x + 16, curY, width - 32);
+          curY += 20;
+        } else if (line.startsWith('## ')) {
+          ctx.font = "700 13px 'Virgil', sans-serif";
+          ctx.fillStyle = isDark ? '#ffffff' : '#1e1e1e';
+          ctx.fillText(line.substring(3), x + 16, curY, width - 32);
+          curY += 18;
+        } else if (line.startsWith('- [ ] ') || line.startsWith('- [x] ')) {
+          const isChecked = line.startsWith('- [x] ');
+          const itemText = line.substring(6);
+          ctx.font = "400 12px 'Virgil', sans-serif";
+          ctx.fillStyle = isDark ? '#ced4da' : '#343a40';
+          ctx.fillText(isChecked ? `☑ ${itemText}` : `☐ ${itemText}`, x + 16, curY, width - 32);
+          curY += 18;
+        } else if (line.startsWith('- ') || line.startsWith('* ')) {
+          ctx.font = "400 12px 'Virgil', sans-serif";
+          ctx.fillStyle = isDark ? '#ced4da' : '#343a40';
+          ctx.fillText(`• ${line.substring(2)}`, x + 16, curY, width - 32);
+          curY += 18;
+        } else if (line.startsWith('`') && line.endsWith('`') && line.length > 2) {
+          ctx.font = "500 11px 'JetBrains Mono', monospace";
+          ctx.fillStyle = isDark ? '#ffc078' : '#d9480f';
+          ctx.fillText(line.slice(1, -1), x + 16, curY, width - 32);
+          curY += 18;
+        } else {
+          ctx.font = "400 12px 'Virgil', sans-serif";
+          ctx.fillStyle = isDark ? '#ced4da' : '#343a40';
+          const cleanedText = line.replace(/\*\*(.*?)\*\*/g, '$1');
+          ctx.fillText(cleanedText, x + 16, curY, width - 32);
+          curY += 18;
+        }
+      }
+    } else {
+      // ADR Architecture Decision Record Card
+      const bg = isDark ? '#1a1b1e' : '#ffffff';
+      const borderColor = isDark ? '#2c2e33' : '#dee2e6';
+
+      // Drop shadow
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.08)';
+      ctx.shadowBlur = 12;
+      ctx.shadowOffsetY = 4;
+
+      ctx.beginPath();
+      if (typeof ctx.roundRect === 'function') {
+        ctx.roundRect(x, y, width, height, r);
+      } else {
+        ctx.rect(x, y, width, height);
+      }
+      ctx.fillStyle = bg;
+      ctx.fill();
+
+      ctx.shadowColor = 'transparent';
+      ctx.strokeStyle = borderColor;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Top colored header bar
+      const headerH = 38;
+      ctx.beginPath();
+      if (typeof ctx.roundRect === 'function') {
+        ctx.roundRect(x, y, width, headerH, [r, r, 0, 0]);
+      } else {
+        ctx.rect(x, y, width, headerH);
+      }
+      ctx.fillStyle = isDark ? '#25262b' : `${accentColor}10`;
+      ctx.fill();
+
+      // Top line accent
+      ctx.beginPath();
+      if (typeof ctx.roundRect === 'function') {
+        ctx.roundRect(x, y, width, 3, [r, r, 0, 0]);
+      } else {
+        ctx.rect(x, y, width, 3);
+      }
+      ctx.fillStyle = accentColor;
+      ctx.fill();
+
+      // Divider under header
+      ctx.beginPath();
+      ctx.moveTo(x, y + headerH);
+      ctx.lineTo(x + width, y + headerH);
+      ctx.strokeStyle = borderColor;
+      ctx.stroke();
+
+      // ADR Title
+      const title = element.title || 'ADR-001: Architectural Decision';
+      ctx.font = "700 13px 'Outfit', sans-serif";
+      ctx.fillStyle = isDark ? '#ffffff' : '#1e1e1e';
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+      ctx.fillText(`📋 ${title}`, x + 12, y + headerH / 2 + 1, width - 110);
+
+      // Status Badge (PROPOSED, ACCEPTED, SUPERSEDED)
+      const status = (element.status || 'PROPOSED').toUpperCase();
+      const statusColors = {
+        PROPOSED: { bg: '#fff4e6', text: '#d9480f', darkBg: '#472714', darkText: '#ffc078' },
+        ACCEPTED: { bg: '#ebfbee', text: '#2b8a3e', darkBg: '#15361b', darkText: '#8ce99a' },
+        SUPERSEDED: { bg: '#f1f3f5', text: '#868e96', darkBg: '#25262b', darkText: '#adb5bd' }
+      };
+      const stConfig = statusColors[status] || statusColors.PROPOSED;
+      ctx.font = "700 9px 'JetBrains Mono', monospace";
+      const sW = ctx.measureText(status).width + 12;
+      const sH = 18;
+      const sX = x + width - sW - 10;
+      const sY = y + (headerH - sH) / 2 + 1;
+
+      ctx.beginPath();
+      if (typeof ctx.roundRect === 'function') {
+        ctx.roundRect(sX, sY, sW, sH, 4);
+      } else {
+        ctx.rect(sX, sY, sW, sH);
+      }
+      ctx.fillStyle = isDark ? stConfig.darkBg : stConfig.bg;
+      ctx.fill();
+      ctx.fillStyle = isDark ? stConfig.darkText : stConfig.text;
+      ctx.textAlign = 'center';
+      ctx.fillText(status, sX + sW / 2, sY + sH / 2 + 1);
+
+      // Content Lines
+      ctx.textBaseline = 'top';
+      ctx.textAlign = 'left';
+      let curY = y + headerH + 14;
+      const content = String(element.content || element.text || '');
+      const lines = content.split('\n');
+
+      for (const rawLine of lines) {
+        if (curY > y + height - 16) break;
+        const line = rawLine.trim();
+        if (!line) {
+          curY += 8;
+          continue;
+        }
+
+        if (line.startsWith('# ') || line.startsWith('## ')) {
+          ctx.font = "700 12px 'Outfit', sans-serif";
+          ctx.fillStyle = isDark ? '#a5d8ff' : '#1971c2';
+          const heading = line.replace(/^#+\s*/, '');
+          ctx.fillText(heading, x + 14, curY, width - 28);
+          curY += 18;
+        } else if (line.startsWith('- ') || line.startsWith('* ')) {
+          ctx.font = "400 11px -apple-system, BlinkMacSystemFont, sans-serif";
+          ctx.fillStyle = isDark ? '#c1c2c5' : '#495057';
+          ctx.fillText(`• ${line.substring(2)}`, x + 16, curY, width - 32);
+          curY += 16;
+        } else {
+          ctx.font = "400 11px -apple-system, BlinkMacSystemFont, sans-serif";
+          ctx.fillStyle = isDark ? '#c1c2c5' : '#495057';
+          const cleanedText = line.replace(/\*\*(.*?)\*\*/g, '$1');
+          ctx.fillText(cleanedText, x + 14, curY, width - 28);
+          curY += 16;
+        }
+      }
     }
 
     ctx.restore();

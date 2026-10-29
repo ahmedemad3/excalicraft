@@ -50,18 +50,19 @@ export class ArchitectureGraph {
         }
 
         if (fromId && toId && this.nodes.has(fromId) && this.nodes.has(toId)) {
-          this.edges.push({
+          const edgeObj = {
             id: el.id,
             from: fromId,
             to: toId,
             element: el,
             qps: Number(el.qps) || 0,
             latencyMs: Number(el.latencyMs ?? el.latency) || 0
-          });
+          };
+          this.edges.push(edgeObj);
 
           this.adj.get(fromId).add(toId);
-          this.outEdges.get(fromId).push(el);
-          this.inEdges.get(toId).push(el);
+          this.outEdges.get(fromId).push(edgeObj);
+          this.inEdges.get(toId).push(edgeObj);
 
           // Undirected mapping for biconnectivity / cut-vertex analysis
           this.undirectedAdj.get(fromId).add(toId);
@@ -238,6 +239,19 @@ export class ArchitectureGraph {
       }
     }
 
+    // Flow-Directed Dominator Tree SPOF integration (Milestone 8.3 / ISSUE-52)
+    try {
+      const { directedSpofs } = this.computeDominatorTree();
+      for (const dId of directedSpofs) {
+        const node = this.nodes.get(dId);
+        if (node && node.isSpof !== false && node.spof !== false && !node.isReplicated && !node.isRedundant) {
+          spofs.add(dId);
+        }
+      }
+    } catch (err) {
+      console.warn('[Graph] Dominator tree SPOF computation error:', err);
+    }
+
     // Explicit manual SPOF overrides or properties
     for (const [id, node] of this.nodes) {
       if (node.isSpof === false || node.spof === false || node.isReplicated === true) {
@@ -355,5 +369,173 @@ export class ArchitectureGraph {
     }
 
     return nodeMetrics;
+  }
+
+  /**
+   * ==========================================================================
+   * Sprint 8: Flow-Directed Dominator Tree & Blast Radius (Milestone 8.3 & ISSUE-52)
+   * Calculates immediate dominators (idom) on directed operational dependency graphs.
+   * If node V fails, its blast radius is the set of all downstream nodes that
+   * become completely unreachable from ingress roots.
+   * Implements SEC-S8-03 (Iterative dataflow with cycle bounds & bounded iteration).
+   * ==========================================================================
+   */
+  computeDominatorTree() {
+    const nodeIds = Array.from(this.nodes.keys());
+    if (nodeIds.length === 0) {
+      return {
+        dominators: new Map(),
+        idom: new Map(),
+        blastRadius: new Map(),
+        directedSpofs: new Set()
+      };
+    }
+
+    // 1. Identify entry root nodes (in-degree 0 or role='entry' / badge in ['EDGE','CLIENT'])
+    const entryRoots = new Set();
+    for (const id of nodeIds) {
+      const node = this.nodes.get(id);
+      const role = String(node?.role || '').toLowerCase();
+      const badge = String(node?.badge || '').toUpperCase();
+      const inCount = (this.inEdges.get(id) || []).length;
+      if (inCount === 0 || role === 'entry' || badge === 'EDGE' || badge === 'CLIENT') {
+        entryRoots.add(id);
+      }
+    }
+
+    // Fallback: if cyclical or no roots found, pick first node
+    if (entryRoots.size === 0 && nodeIds.length > 0) {
+      entryRoots.add(nodeIds[0]);
+    }
+
+    // 2. Iterative Dataflow Dominator Algorithm: Dom(n) = {n} U (Intersect_{p in Pred(n)} Dom(p))
+    const dom = new Map();
+    const allNodesSet = new Set(nodeIds);
+
+    for (const id of nodeIds) {
+      if (entryRoots.has(id)) {
+        dom.set(id, new Set([id]));
+      } else {
+        dom.set(id, new Set(allNodesSet));
+      }
+    }
+
+    let changed = true;
+    let iterations = 0;
+    const MAX_ITERATIONS = 50; // Guard against pathological infinite loops (SEC-S8-03)
+
+    while (changed && iterations < MAX_ITERATIONS) {
+      changed = false;
+      iterations++;
+
+      for (const id of nodeIds) {
+        if (entryRoots.has(id)) continue;
+
+        const preds = (this.inEdges.get(id) || []).map(e => e.from || e.startBinding?.elementId).filter(fromId => this.nodes.has(fromId));
+        if (preds.length === 0) continue;
+
+        // Intersect dominators of predecessors
+        let intersection = new Set(dom.get(preds[0]) || []);
+        for (let i = 1; i < preds.length; i++) {
+          const pDom = dom.get(preds[i]) || new Set();
+          const nextIntersect = new Set();
+          for (const item of intersection) {
+            if (pDom.has(item)) nextIntersect.add(item);
+          }
+          intersection = nextIntersect;
+        }
+
+        // Add self
+        intersection.add(id);
+
+        const currentDom = dom.get(id);
+        if (intersection.size !== currentDom.size || ![...intersection].every(x => currentDom.has(x))) {
+          dom.set(id, intersection);
+          changed = true;
+        }
+      }
+    }
+
+    // 3. Compute immediate dominator: idom(n)
+    const idom = new Map();
+    for (const id of nodeIds) {
+      const strictDoms = Array.from(dom.get(id) || []).filter(d => d !== id);
+      if (strictDoms.length === 0) {
+        idom.set(id, null);
+        continue;
+      }
+
+      // The immediate dominator is the one that is dominated by all other strict dominators
+      let immDom = strictDoms[0];
+      for (const candidate of strictDoms) {
+        const candidateDom = dom.get(candidate) || new Set();
+        const dominatesAllOthers = strictDoms.every(other => other === candidate || candidateDom.has(other));
+        if (dominatesAllOthers) {
+          immDom = candidate;
+          break;
+        }
+      }
+      idom.set(id, immDom);
+    }
+
+    // 4. Compute Blast Radius for each node: all nodes strictly dominated by this node
+    const blastRadius = new Map();
+    const directedSpofs = new Set();
+
+    for (const v of nodeIds) {
+      const affected = [];
+      for (const w of nodeIds) {
+        if (w !== v && (dom.get(w) || new Set()).has(v)) {
+          affected.push(w);
+        }
+      }
+      blastRadius.set(v, affected);
+
+      // Node is a directed SPOF if failing it isolates at least one downstream node
+      // and it is not an entry root itself or an explicitly replicated node
+      const nodeObj = this.nodes.get(v);
+      const isReplicated = nodeObj?.isReplicated === true || nodeObj?.isRedundant === true;
+      if (affected.length > 0 && !isReplicated && !entryRoots.has(v)) {
+        directedSpofs.add(v);
+      }
+    }
+
+    return {
+      dominators: dom,
+      idom,
+      blastRadius,
+      directedSpofs
+    };
+  }
+
+  /**
+   * Retrieves the downstream blast radius (affected nodes and connecting edges) for a given node.
+   * @param {string} nodeId
+   * @returns {{ nodeId: string, affectedNodeIds: string[], affectedEdges: Array<Object>, isSpof: boolean, message: string }}
+   */
+  getBlastRadius(nodeId) {
+    const { blastRadius } = this.computeDominatorTree();
+    const affectedNodeIds = blastRadius.get(nodeId) || [];
+
+    const affectedSet = new Set(affectedNodeIds);
+    affectedSet.add(nodeId);
+
+    // Edges where both endpoints or from-point are in the affected set
+    const affectedEdges = this.edges.filter(e => affectedSet.has(e.from) || affectedSet.has(e.to));
+
+    const node = this.nodes.get(nodeId);
+    const nodeName = node?.title || nodeId;
+    const count = affectedNodeIds.length;
+    const message = count > 0
+      ? `⚠️ SPOF Alert: Failing ${nodeName} cuts off ${count} downstream service${count > 1 ? 's' : ''}`
+      : `✓ High Availability: Failing ${nodeName} does not isolate downstream services.`;
+
+    return {
+      nodeId,
+      affectedNodeIds,
+      affectedEdges,
+      isSpof: count > 0,
+      message
+    };
   }
 }

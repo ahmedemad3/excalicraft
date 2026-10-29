@@ -1015,6 +1015,97 @@ export function exportToSvg(elements, theme = 'light', options = {}) {
         node = boundaryGroup;
         break;
       }
+      case 'note': {
+        const noteGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        noteGroup.setAttribute('data-element-id', el.id || '');
+        const cardStyle = el.cardStyle || 'sticky';
+        const isAdr = cardStyle === 'adr';
+        const bgFill = el.backgroundColor || (isAdr ? (theme === 'dark' ? '#1e293b' : '#ffffff') : (el.themeColor || '#fff9db'));
+        const borderColor = el.strokeColor || (isAdr ? (el.themeColor || '#1971c2') : 'rgba(0,0,0,0.15)');
+
+        // Background card rect
+        const cardRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        cardRect.setAttribute('x', `${x}`);
+        cardRect.setAttribute('y', `${y}`);
+        cardRect.setAttribute('width', `${w}`);
+        cardRect.setAttribute('height', `${h}`);
+        cardRect.setAttribute('rx', isAdr ? '8' : '4');
+        cardRect.setAttribute('fill', bgFill);
+        cardRect.setAttribute('stroke', borderColor);
+        cardRect.setAttribute('stroke-width', isAdr ? '1.5' : '1');
+        noteGroup.appendChild(cardRect);
+
+        if (isAdr) {
+          // Top accent bar
+          const bar = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          bar.setAttribute('x', `${x}`);
+          bar.setAttribute('y', `${y}`);
+          bar.setAttribute('width', `${w}`);
+          bar.setAttribute('height', '6');
+          bar.setAttribute('rx', '4');
+          bar.setAttribute('fill', el.themeColor || '#1971c2');
+          noteGroup.appendChild(bar);
+
+          // Status Badge
+          const status = el.status || 'PROPOSED';
+          const statusBg = status === 'ACCEPTED' ? '#2b8a3e' : (status === 'SUPERSEDED' ? '#868e96' : '#f08c00');
+          const badgeRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          badgeRect.setAttribute('x', `${x + w - 85}`);
+          badgeRect.setAttribute('y', `${y + 12}`);
+          badgeRect.setAttribute('width', '75');
+          badgeRect.setAttribute('height', '18');
+          badgeRect.setAttribute('rx', '4');
+          badgeRect.setAttribute('fill', statusBg);
+          noteGroup.appendChild(badgeRect);
+
+          const badgeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          badgeText.setAttribute('x', `${x + w - 47}`);
+          badgeText.setAttribute('y', `${y + 24}`);
+          badgeText.setAttribute('text-anchor', 'middle');
+          badgeText.setAttribute('fill', '#ffffff');
+          badgeText.setAttribute('font-family', "'Outfit', sans-serif");
+          badgeText.setAttribute('font-weight', '700');
+          badgeText.setAttribute('font-size', '9px');
+          badgeText.textContent = status;
+          noteGroup.appendChild(badgeText);
+        }
+
+        // Title
+        if (el.title) {
+          const titleTag = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          titleTag.setAttribute('x', `${x + 14}`);
+          titleTag.setAttribute('y', `${y + 25}`);
+          titleTag.setAttribute('fill', isAdr ? (theme === 'dark' ? '#f8f9fa' : '#212529') : '#343a40');
+          titleTag.setAttribute('font-family', "'Outfit', sans-serif");
+          titleTag.setAttribute('font-weight', '700');
+          titleTag.setAttribute('font-size', '13px');
+          titleTag.textContent = String(el.title).replace(/\s+on\w+\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gi, '');
+          noteGroup.appendChild(titleTag);
+        }
+
+        // Markdown text lines
+        const rawContent = el.content || el.text || '';
+        const lines = rawContent.split('\n');
+        let lineY = y + (el.title ? 45 : 25);
+        lines.slice(0, 10).forEach(line => {
+          if (!line.trim()) {
+            lineY += 12;
+            return;
+          }
+          const textTag = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          textTag.setAttribute('x', `${x + 14}`);
+          textTag.setAttribute('y', `${lineY}`);
+          textTag.setAttribute('fill', theme === 'dark' && isAdr ? '#dee2e6' : '#495057');
+          textTag.setAttribute('font-family', isAdr ? "'Inter', sans-serif" : "'Virgil', 'Caveat', cursive");
+          textTag.setAttribute('font-size', '11px');
+          textTag.textContent = line.trim().replace(/\s+on\w+\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gi, '');
+          noteGroup.appendChild(textTag);
+          lineY += 16;
+        });
+
+        node = noteGroup;
+        break;
+      }
     }
 
     if (node) {
@@ -1027,14 +1118,28 @@ export function exportToSvg(elements, theme = 'light', options = {}) {
 
   const serializer = new XMLSerializer();
   const svgString = serializer.serializeToString(svg);
-  const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
 
-  const link = document.createElement('a');
-  link.download = `excalidraw-diagram-${Date.now()}.svg`;
-  link.href = url;
-  link.click();
-  URL.revokeObjectURL(url);
+  if (options && options.returnString) {
+    return svgString;
+  }
+
+  if (typeof Blob !== 'undefined' && typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function') {
+    try {
+      const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = `excalidraw-diagram-${Date.now()}.svg`;
+      link.href = url;
+      if (typeof link.click === 'function') {
+        link.click();
+      }
+      URL.revokeObjectURL(url);
+    } catch {
+      // Fallback for non-browser environments
+    }
+  }
+
+  return svgString;
 }
 
 export function exportToJson(elements, appState = {}) {
@@ -1087,7 +1192,7 @@ export function sanitizeImportedElements(rawElements, files = {}) {
   const allowedTypes = new Set([
     'rectangle', 'ellipse', 'diamond', 'line', 'arrow', 'freedraw', 'text',
     'node', 'erd-table', 'swimlane', 'state-node', 'activation-box', 'group-boundary',
-    'activity-action', 'fork-node', 'join-node', 'flow-final', 'image', 'c4-element'
+    'activity-action', 'fork-node', 'join-node', 'flow-final', 'image', 'c4-element', 'note'
   ]);
 
   const sanitizeNumber = (val, fallback, min = -1e7, max = 1e7) => {
@@ -1170,6 +1275,11 @@ export function sanitizeImportedElements(rawElements, files = {}) {
     if (el.label !== undefined) cleanEl.label = sanitizeString(el.label);
     if (el.themeColor !== undefined) cleanEl.themeColor = sanitizeString(el.themeColor);
     if (el.cardStyle !== undefined) cleanEl.cardStyle = el.cardStyle === 'sketch' ? 'sketch' : 'modern';
+
+    // Note attributes (ADR & Sticky Note)
+    if (el.subType !== undefined) cleanEl.subType = sanitizeString(el.subType, 'sticky');
+    if (el.content !== undefined) cleanEl.content = sanitizeString(el.content);
+    if (el.status !== undefined) cleanEl.status = sanitizeString(el.status);
 
     // Freedraw points clamp (CWE-400 resource exhaustion mitigation - max 5,000 points)
     if (Array.isArray(el.points)) {

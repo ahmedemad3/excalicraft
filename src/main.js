@@ -27,7 +27,7 @@ import { CanvasMinimap } from './minimap.js';
 import { PresentationController } from './presenter.js';
 import { ARCHITECTURE_ICONS, getLucideSvg } from './icons.js';
 import { ArchitectureGraph } from './graph.js';
-import { generateSqlDdl, generateTableDdl, downloadSqlFile, copySqlToClipboard } from './codegen.js';
+import { generateSqlDdl, generateTableDdl, downloadSqlFile, copySqlToClipboard, parseSqlToErd } from './codegen.js';
 import { exportToMermaid, importFromMermaid } from './mermaid.js';
 
 // ==========================================================================
@@ -632,6 +632,15 @@ class App {
     }
 
     const selectedElements = this.elements.filter(el => this.selectedElementIds.has(el.id));
+    let blastRadiusNodeIds = null;
+    if (this.showMetricsOverlay && this.selectedElementIds.size === 1 && this.cachedGraph) {
+      const selId = Array.from(this.selectedElementIds)[0];
+      const blast = this.cachedGraph.getBlastRadius(selId);
+      if (blast && blast.affectedNodeIds && blast.affectedNodeIds.length > 0) {
+        blastRadiusNodeIds = new Set(blast.affectedNodeIds);
+      }
+    }
+
     this.renderer.render({
       elements: this.elements,
       selectedElements,
@@ -645,6 +654,7 @@ class App {
       previewElement: this.previewElement,
       metricsOverlay: this.showMetricsOverlay,
       spofNodeIds: this.cachedSpofNodeIds,
+      blastRadiusNodeIds,
       capacityMetrics: this.cachedCapacityMetrics
     });
     this.updateTelemetryBox();
@@ -873,6 +883,7 @@ class App {
     const actBoxSec = document.getElementById('activationBoxInspectorSection');
     const diamondSec = document.getElementById('diamondInspectorSection');
     const actionSec = document.getElementById('actionNodeInspectorSection');
+    const noteSec = document.getElementById('noteInspectorSection');
     const quickAddSec = document.getElementById('canvasQuickAddSection');
     const standardSec = document.getElementById('standardShapeSection');
 
@@ -881,6 +892,7 @@ class App {
     if (connSec) connSec.style.display = 'none';
     if (groupSec) groupSec.style.display = 'none';
     if (erdSec) erdSec.style.display = 'none';
+    if (noteSec) noteSec.style.display = 'none';
     if (stateSec) stateSec.style.display = 'none';
     if (swimlaneSec) swimlaneSec.style.display = 'none';
     if (actBoxSec) actBoxSec.style.display = 'none';
@@ -1082,6 +1094,30 @@ class App {
         document.querySelectorAll('#actionAccentPalette .arch-color-swatch').forEach(s => {
           s.classList.toggle('active', s.dataset.color === (el.themeColor || '#2f9e44'));
         });
+      } else if (el.type === 'note') {
+        if (noteSec) noteSec.style.display = 'flex';
+        const cardStyle = el.cardStyle || 'sticky';
+        const noteBadge = document.getElementById('noteInspectorBadge');
+        if (noteBadge) {
+          noteBadge.innerHTML = `<i data-lucide="${cardStyle === 'adr' ? 'file-text' : 'sticky-note'}"></i> ${cardStyle === 'adr' ? 'ADR RECORD' : 'STICKY NOTE'}`;
+        }
+        badge.textContent = cardStyle === 'adr' ? 'ADR NOTE' : 'STICKY NOTE';
+        const titleInput = document.getElementById('propNoteTitle');
+        const contentInput = document.getElementById('propNoteContent');
+        const statusField = document.getElementById('noteStatusField');
+        if (titleInput) titleInput.value = el.title || '';
+        if (contentInput) contentInput.value = el.content || el.text || '';
+        if (statusField) statusField.style.display = cardStyle === 'adr' ? 'block' : 'none';
+
+        document.querySelectorAll('#noteStyleControl .segment-btn').forEach(b => {
+          b.classList.toggle('active', (b.dataset.noteStyle || 'sticky') === cardStyle);
+        });
+        document.querySelectorAll('#noteStatusControl .segment-btn').forEach(b => {
+          b.classList.toggle('active', (b.dataset.noteStatus || 'PROPOSED') === (el.status || 'PROPOSED'));
+        });
+        document.querySelectorAll('#noteAccentPalette .arch-color-swatch').forEach(s => {
+          s.classList.toggle('active', s.dataset.color.toLowerCase() === (el.themeColor || el.backgroundColor || (cardStyle === 'sticky' ? '#fff9db' : '#ffffff')).toLowerCase());
+        });
       } else {
         if (standardSec) standardSec.style.display = 'block';
       }
@@ -1101,7 +1137,7 @@ class App {
     const isConnector = singleEl && (singleEl.type === 'arrow' || singleEl.type === 'line' || singleEl.type === 'elbow-arrow');
     const isFreedraw = singleEl && singleEl.type === 'freedraw';
     const isImage = singleEl && singleEl.type === 'image';
-    const isArchElement = singleEl && ['node', 'erd-table', 'swimlane', 'state-node', 'activation-box', 'activity-action', 'fork-node', 'join-node', 'flow-final'].includes(singleEl.type);
+    const isArchElement = singleEl && ['node', 'erd-table', 'note', 'swimlane', 'state-node', 'activation-box', 'activity-action', 'fork-node', 'join-node', 'flow-final'].includes(singleEl.type);
     const isGroup = singleEl && singleEl.type === 'group-boundary';
 
     const secStroke = document.getElementById('sec-stroke');
@@ -1364,6 +1400,30 @@ class App {
             const rect = this.canvas.getBoundingClientRect();
             const pos = screenToScene(e.clientX - rect.left, e.clientY - rect.top, this.scrollX, this.scrollY, this.zoom);
             this.insertImageFromFile(file, pos);
+          } else if (file.name.endsWith('.sql') || file.type === 'text/x-sql' || file.type === 'application/sql') {
+            e.preventDefault();
+            const reader = new FileReader();
+            reader.onload = (re) => {
+              try {
+                const rect = this.canvas.getBoundingClientRect();
+                const pos = screenToScene(e.clientX - rect.left, e.clientY - rect.top, this.scrollX, this.scrollY, this.zoom);
+                const { elements: newTables, tablesCount, relationshipsCount, warnings } = parseSqlToErd(re.target.result, { startX: pos.x, startY: pos.y });
+                if (newTables.length === 0) {
+                  this.showToast(warnings[0] || 'No CREATE TABLE statements found in SQL file.', 'error');
+                  return;
+                }
+                this.elements.push(...newTables);
+                this.selectedElementIds.clear();
+                newTables.forEach(t => this.selectedElementIds.add(t.id));
+                this.history.record(this.elements);
+                this.updateEmptyState();
+                this.render();
+                this.showToast(`Imported ${tablesCount} tables and ${relationshipsCount} links from ${file.name}`, 'success');
+              } catch (err) {
+                this.showToast(err.message || 'Failed to parse SQL DDL schema.', 'error');
+              }
+            };
+            reader.readAsText(file);
           } else if (isSvg || file.name.endsWith('.json') || file.name.endsWith('.excalidraw')) {
             e.preventDefault();
             importFromJson(file, (elements, appState) => {
@@ -1942,6 +2002,73 @@ class App {
       });
     }
 
+    // 4.5 Architecture Markdown Note & ADR Inputs (Sprint 8 / ISSUE-51)
+    const propNoteTitle = document.getElementById('propNoteTitle');
+    if (propNoteTitle) {
+      propNoteTitle.addEventListener('input', (e) => {
+        this.applyStyleToSelection('title', e.target.value);
+        this.render();
+      });
+    }
+
+    const propNoteContent = document.getElementById('propNoteContent');
+    if (propNoteContent) {
+      propNoteContent.addEventListener('input', (e) => {
+        this.applyStyleToSelection('content', e.target.value);
+        this.applyStyleToSelection('text', e.target.value);
+        this.render();
+      });
+    }
+
+    document.querySelectorAll('#noteStyleControl .segment-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const style = btn.dataset.noteStyle || 'sticky';
+        this.applyStyleToSelection('cardStyle', style);
+        if (style === 'adr') {
+          this.applyStyleToSelection('width', 340);
+          this.applyStyleToSelection('height', 260);
+          this.applyStyleToSelection('themeColor', '#1971c2');
+        } else {
+          this.applyStyleToSelection('width', 220);
+          this.applyStyleToSelection('height', 180);
+          this.applyStyleToSelection('themeColor', '#fff9db');
+          this.applyStyleToSelection('backgroundColor', '#fff9db');
+        }
+        this.updateInspectorUI();
+        this.render();
+      });
+    });
+
+    document.querySelectorAll('#noteStatusControl .segment-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const st = btn.dataset.noteStatus || 'PROPOSED';
+        this.applyStyleToSelection('status', st);
+        this.updateInspectorUI();
+        this.render();
+      });
+    });
+
+    const notePalette = document.getElementById('noteAccentPalette');
+    if (notePalette) {
+      const NOTE_COLORS = ['#fff9db', '#e7f5ff', '#ebfbee', '#f3f0ff', '#fff4e6', '#ffffff'];
+      notePalette.innerHTML = '';
+      NOTE_COLORS.forEach(c => {
+        const sw = document.createElement('div');
+        sw.className = 'arch-color-swatch';
+        sw.dataset.color = c;
+        sw.style.backgroundColor = c;
+        sw.style.border = '1px solid rgba(0,0,0,0.15)';
+        sw.title = c;
+        sw.addEventListener('click', () => {
+          this.applyStyleToSelection('themeColor', c);
+          this.applyStyleToSelection('backgroundColor', c);
+          this.updateInspectorUI();
+          this.render();
+        });
+        notePalette.appendChild(sw);
+      });
+    }
+
     // 5. UML State Machine Inputs
     const propStateTitle = document.getElementById('propStateTitle');
     if (propStateTitle) {
@@ -2024,6 +2151,63 @@ class App {
       cx: (-this.scrollX + window.innerWidth / 2) / this.zoom,
       cy: (-this.scrollY + window.innerHeight / 2) / this.zoom
     });
+
+    // 8.0 Architecture Notes & ADR Components (Sprint 8 / ISSUE-51)
+    const btnAddStickyNote = document.getElementById('btn-add-sticky-note');
+    if (btnAddStickyNote) {
+      btnAddStickyNote.addEventListener('click', () => {
+        const { cx, cy } = getCenter();
+        const note = {
+          id: generateId(),
+          type: 'note',
+          cardStyle: 'sticky',
+          x: cx - 110,
+          y: cy - 90,
+          width: 220,
+          height: 180,
+          title: 'Sticky Note',
+          content: '## Quick Note\n- [ ] Review architecture\n- [x] Baseline setup',
+          text: '## Quick Note\n- [ ] Review architecture\n- [x] Baseline setup',
+          themeColor: '#fff9db',
+          backgroundColor: '#fff9db',
+          seed: generateSeed()
+        };
+        this.elements.push(note);
+        this.selectedElementIds.clear();
+        this.selectedElementIds.add(note.id);
+        this.history.record(this.elements);
+        this.updateInspectorUI();
+        this.render();
+      });
+    }
+
+    const btnAddAdrNote = document.getElementById('btn-add-adr-note');
+    if (btnAddAdrNote) {
+      btnAddAdrNote.addEventListener('click', () => {
+        const { cx, cy } = getCenter();
+        const adr = {
+          id: generateId(),
+          type: 'note',
+          cardStyle: 'adr',
+          status: 'PROPOSED',
+          x: cx - 170,
+          y: cy - 130,
+          width: 340,
+          height: 260,
+          title: 'ADR-001: Architectural Decision',
+          content: '## Context\nNeed horizontal scalability for high-frequency events.\n\n## Decision\nAdopt partition-based Kafka broker.\n\n## Consequences\n- [x] Strong ordering per partition\n- [ ] Consumer rebalancing overhead',
+          text: 'ADR-001: Architectural Decision',
+          themeColor: '#1971c2',
+          seed: generateSeed()
+        };
+        this.elements.push(adr);
+        this.selectedElementIds.clear();
+        this.selectedElementIds.add(adr.id);
+        this.history.record(this.elements);
+        this.updateInspectorUI();
+        this.render();
+      });
+    }
 
     // 8.1 Database & Storage Components
     const btnAddErdTable = document.getElementById('btn-add-erd-table');
@@ -2982,6 +3166,13 @@ class App {
   // Pointer Interaction Pipeline
   // ==========================================================================
   onPointerDown(e) {
+    if (this.activeInlineTextCommit) {
+      const commitFn = this.activeInlineTextCommit;
+      this.activeInlineTextCommit = null;
+      commitFn();
+      return;
+    }
+
     if (e.button === 1 || this.spacePressed || this.currentTool === 'hand') {
       // Middle click, Space+drag, or Hand Tool = Canvas Panning
       this.isPanning = true;
@@ -3494,20 +3685,41 @@ class App {
   }
 
   // ==========================================================================
-  // Inline Text Editor
+  // Inline Text Editor (Authentic Seamless Excalidraw Interaction)
   // ==========================================================================
   startInlineTextEditor(scenePoint, screenX, screenY, existingElement = null) {
+    if (this.activeInlineTextCommit) {
+      this.activeInlineTextCommit();
+      this.activeInlineTextCommit = null;
+    }
+
     const textarea = document.getElementById('inlineTextEditor');
     if (!textarea) return;
+
+    const activeFont = existingElement ? (existingElement.fontFamily || this.activeStyles.fontFamily || 'Virgil') : (this.activeStyles.fontFamily || 'Virgil');
+    const activeColor = existingElement ? (existingElement.strokeColor || this.activeStyles.strokeColor || '#1e1e1e') : (this.activeStyles.strokeColor || '#1e1e1e');
+    const baseFontSize = existingElement ? (existingElement.fontSize || 24) : 24;
+    const scaledFontSize = baseFontSize * this.zoom;
 
     textarea.style.display = 'block';
     textarea.style.left = `${screenX}px`;
     textarea.style.top = `${screenY}px`;
-    textarea.style.minWidth = '140px';
-    textarea.style.minHeight = '36px';
+    textarea.style.minWidth = '60px';
+    textarea.style.minHeight = `${Math.round(scaledFontSize * 1.3)}px`;
     textarea.style.zIndex = '1000';
     textarea.value = existingElement ? (existingElement.text || '') : '';
-    textarea.style.fontSize = `${(existingElement ? existingElement.fontSize || 24 : 24) * this.zoom}px`;
+    textarea.style.fontSize = `${scaledFontSize}px`;
+    textarea.style.fontFamily = activeFont === 'Cascadia' ? 'Cascadia, monospace' : (activeFont === 'Helvetica' ? 'Helvetica, Arial, sans-serif' : 'Virgil, "Segoe UI Emoji", sans-serif');
+    textarea.style.color = activeColor;
+    textarea.style.lineHeight = '1.25';
+
+    const autoResize = () => {
+      textarea.style.height = 'auto';
+      textarea.style.width = 'auto';
+      textarea.style.height = `${Math.max(Math.round(scaledFontSize * 1.3), textarea.scrollHeight)}px`;
+      textarea.style.width = `${Math.max(80, textarea.scrollWidth + 16)}px`;
+    };
+    autoResize();
 
     const stopProp = (e) => e.stopPropagation();
     textarea.addEventListener('pointerdown', stopProp);
@@ -3518,10 +3730,12 @@ class App {
     const commit = () => {
       if (committed) return;
       committed = true;
+      this.activeInlineTextCommit = null;
       textarea.style.display = 'none';
       const text = textarea.value.trim();
       textarea.removeEventListener('blur', onBlur);
       textarea.removeEventListener('keydown', onKeyDown);
+      textarea.removeEventListener('input', autoResize);
       textarea.removeEventListener('pointerdown', stopProp);
       textarea.removeEventListener('mousedown', stopProp);
       textarea.removeEventListener('click', stopProp);
@@ -3537,11 +3751,13 @@ class App {
             x: scenePoint.x,
             y: scenePoint.y,
             text: text,
-            fontSize: 24,
+            fontSize: baseFontSize,
+            fontFamily: activeFont,
+            textAlign: this.activeStyles.textAlign || 'left',
             angle: 0,
-            strokeColor: this.activeStyles.strokeColor,
-            roughness: this.activeStyles.roughness,
-            opacity: this.activeStyles.opacity,
+            strokeColor: activeColor,
+            roughness: this.activeStyles.roughness !== undefined ? this.activeStyles.roughness : 1,
+            opacity: this.activeStyles.opacity !== undefined ? this.activeStyles.opacity : 100,
             seed: generateSeed()
           };
           this.elements.push(newEl);
@@ -3563,29 +3779,23 @@ class App {
     };
 
     const onKeyDown = (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
+      // In Excalidraw, Enter creates a newline for multiline text;
+      // Committing is done by Shift+Enter, Ctrl+Enter, Escape, or clicking outside (blur).
+      if ((e.key === 'Enter' && (e.ctrlKey || e.metaKey)) || e.key === 'Escape') {
         e.preventDefault();
         commit();
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        committed = true;
-        textarea.style.display = 'none';
-        textarea.removeEventListener('blur', onBlur);
-        textarea.removeEventListener('keydown', onKeyDown);
-        textarea.removeEventListener('pointerdown', stopProp);
-        textarea.removeEventListener('mousedown', stopProp);
-        textarea.removeEventListener('click', stopProp);
-        if (!this.isToolLocked) this.setTool('select');
-        this.render();
       }
     };
 
     const onBlur = () => {
-      setTimeout(commit, 80);
+      commit();
     };
 
     textarea.addEventListener('keydown', onKeyDown);
+    textarea.addEventListener('input', autoResize);
     textarea.addEventListener('blur', onBlur);
+
+    this.activeInlineTextCommit = commit;
 
     setTimeout(() => {
       textarea.focus();
@@ -3594,6 +3804,11 @@ class App {
   }
 
   startInlineShapeTextEditor(shapeEl, screenX, screenY) {
+    if (this.activeInlineTextCommit) {
+      this.activeInlineTextCommit();
+      this.activeInlineTextCommit = null;
+    }
+
     const textarea = document.getElementById('inlineTextEditor');
     if (!textarea) return;
 
@@ -3616,6 +3831,7 @@ class App {
     const commit = () => {
       if (committed) return;
       committed = true;
+      this.activeInlineTextCommit = null;
       textarea.style.display = 'none';
       const text = textarea.value.trim();
       textarea.removeEventListener('blur', onBlur);
@@ -3632,28 +3848,20 @@ class App {
     };
 
     const onKeyDown = (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
+      if ((e.key === 'Enter' && (e.ctrlKey || e.metaKey)) || e.key === 'Escape') {
         e.preventDefault();
         commit();
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        committed = true;
-        textarea.style.display = 'none';
-        textarea.removeEventListener('blur', onBlur);
-        textarea.removeEventListener('keydown', onKeyDown);
-        textarea.removeEventListener('pointerdown', stopProp);
-        textarea.removeEventListener('mousedown', stopProp);
-        textarea.removeEventListener('click', stopProp);
-        this.render();
       }
     };
 
     const onBlur = () => {
-      setTimeout(commit, 80);
+      commit();
     };
 
     textarea.addEventListener('keydown', onKeyDown);
     textarea.addEventListener('blur', onBlur);
+
+    this.activeInlineTextCommit = commit;
 
     setTimeout(() => {
       textarea.focus();
@@ -3702,6 +3910,16 @@ class App {
         if (tableNameInput) {
           tableNameInput.focus();
           tableNameInput.select();
+        }
+        return;
+      }
+      if (el.type === 'note' && hitTest(scenePoint.x, scenePoint.y, el)) {
+        this.selectedElementIds.clear();
+        this.selectedElementIds.add(el.id);
+        this.updateInspectorUI();
+        const noteContentInput = document.getElementById('propNoteContent');
+        if (noteContentInput) {
+          noteContentInput.focus();
         }
         return;
       }
@@ -4285,6 +4503,44 @@ class App {
     document.getElementById('import-image-trigger')?.addEventListener('click', () => {
       exportModal.style.display = 'none';
       this.triggerImageUpload();
+    });
+
+    // Import SQL DDL Trigger in Modal
+    const sqlFileInput = document.getElementById('sqlFileInput');
+    document.getElementById('import-sql-ddl-trigger')?.addEventListener('click', () => {
+      exportModal.style.display = 'none';
+      if (sqlFileInput) sqlFileInput.click();
+    });
+    sqlFileInput?.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files.length > 0) {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = (re) => {
+          try {
+            const { elements: newTables, tablesCount, relationshipsCount, warnings } = parseSqlToErd(re.target.result);
+            if (newTables.length === 0) {
+              this.showToast(warnings[0] || 'No CREATE TABLE statements found in SQL file.', 'error');
+              return;
+            }
+            this.elements.push(...newTables);
+            this.selectedElementIds.clear();
+            newTables.forEach(t => this.selectedElementIds.add(t.id));
+            this.history.record(this.elements);
+            const fit = calculateZoomToFit(this.elements, this.canvas.clientWidth, this.canvas.clientHeight, 60);
+            this.zoom = fit.zoom;
+            this.scrollX = fit.scrollX;
+            this.scrollY = fit.scrollY;
+            document.getElementById('zoomDisplay').textContent = `${Math.round(this.zoom * 100)}%`;
+            this.updateEmptyState();
+            this.render();
+            this.showToast(`Imported ${tablesCount} tables and ${relationshipsCount} links from ${file.name}`, 'success');
+          } catch (err) {
+            this.showToast(err.message || 'Failed to parse SQL DDL schema.', 'error');
+          }
+        };
+        reader.readAsText(file);
+        e.target.value = '';
+      }
     });
 
     // Import Trigger with Destructive Confirmation

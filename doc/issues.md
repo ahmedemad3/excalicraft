@@ -3,7 +3,7 @@
 **Project**: ExcaliDraw Pro (ExcaliCraft)  
 **Location**: `doc/issues.md`  
 **Last Updated**: October 29, 2026  
-**Status Overview**: 53 Tracked Issues | 49 Resolved (92%) | 4 Planned (Sprint 8) 🔵 — Sprints 1–7 Completed 🟢
+**Status Overview**: 53 Tracked Issues | 53 Resolved (100%) — Sprints 1–8 Completed 🟢
 
 ---
 
@@ -72,17 +72,17 @@ Here is the exact correlation:
 | **ISSUE-40** | Security / DevServer | BUG-06: /api/save-gif Dev Middleware Has Path Traversal Vulnerability (No Sanitization) | High | 🟢 Resolved | Verified (SEC-S7-01..04, path traversal stripped, extension allowlist, 20MB cap) |
 | **ISSUE-41** | Graph / UX | BUG-07: Sink Database Always Flagged SPOF With No Way to Mark as Intentional | Low | 🟢 Resolved | Verified (TC-S7-SPF-02, isReplicated suppresses stateful SPOF) |
 | **ISSUE-42** | Repo Hygiene | REPO-01: No LICENSE File (MIT Badge Links to 404) | High | 🟢 Resolved | Verified (LICENSE file created at root, standard MIT Ahmed Emad 2026) |
-| **ISSUE-43** | Repo Hygiene | REPO-03: No `npm test` Script — Tests Are Standalone Node Scripts With No CI | Medium | 🟢 Resolved | Verified (npm test runs 11/11 test suites via tests/run_all.js, CI workflow) |
+| **ISSUE-43** | Repo Hygiene | REPO-03: No `npm test` Script — Tests Are Standalone Node Scripts With No CI | Medium | 🟢 Resolved | Verified (npm test runs 12/12 test suites via tests/run_all.js, CI workflow) |
 | **ISSUE-44** | Repo Hygiene | REPO-04: package.json Has Empty Description and Non-Existent `main` Entry | Low | 🟢 Resolved | Verified (package.json description populated, non-existent main removed) |
 | **ISSUE-45** | Repo Hygiene | REPO-05: img/ Contains Timestamped Working Screenshots and Duplicate Sprint GIFs | Low | 🟢 Resolved | Verified (Cleaned img/, exactly 16 production GIFs referenced in README) |
-| **ISSUE-46** | README / Docs | README: SQL → ERD Import Claimed But Not Implemented | Medium | 🟢 Resolved | Verified (README matrix updated, clarified SQL DDL is export only) |
+| **ISSUE-46** | README / Docs | README: SQL → ERD Import Claimed But Not Implemented | Medium | 🟢 Resolved | Verified (README matrix updated, clarified SQL DDL is export only in Sprint 7) |
 | **ISSUE-47** | README / Docs | README: Autosave Feature Exists But Is Not Mentioned | Low | 🟢 Resolved | Verified (README updated with dedicated Auto-Save & Session Restore section) |
 | **ISSUE-48** | README / Docs | README: "100% Excalidraw Compatible, Zero Data Loss" Is Too Absolute | Low | 🟢 Resolved | Verified (README overclaims replaced with accurate high-fidelity metrics) |
 | **ISSUE-49** | README / Docs | README: "Telemetry" Terminology Misleads Users — Should Be "Flow Overlay" | Low | 🟢 Resolved | Verified (README updated with Flow Simulation disclaimer and mode naming) |
-| **ISSUE-50** | Interoperability / DDL | SQL DDL → ERD Reverse Parser (CREATE TABLE Ingestion with PK/FK Links) | High | 🔵 Planned (Sprint 8) | Planned (TC-S8-SQL-01..03, SEC-S8-01) |
-| **ISSUE-51** | Modeling / Docs | First-Class Markdown Notes (Architecture Decision Cards & Canvas Sticky Callouts) | Medium | 🔵 Planned (Sprint 8) | Planned (TC-S8-NOTE-01..03, SEC-S8-02) |
-| **ISSUE-52** | Architecture / Reliability | Flow-Directed Dominator Tree SPOF & Downstream Blast Radius Highlighting | High | 🔵 Planned (Sprint 8) | Planned (TC-S8-DOM-01..03, SEC-S8-03) |
-| **ISSUE-53** | Canvas / UX & Typography | Authentic Excalidraw Text Tool & Input UX ('A' Icon, Frameless Text, Non-Enter Commit) | High | 🔵 Planned (Sprint 8) | Planned (TC-S8-TXT-01..04, SEC-S8-04) |
+| **ISSUE-50** | Interoperability / DDL | SQL DDL → ERD Reverse Parser (CREATE TABLE Ingestion with PK/FK Links) | High | 🟢 Resolved | Verified (TC-S8-SQL-01..03, SEC-S8-01, 5MB limit, orthogonal FK arrows) |
+| **ISSUE-51** | Modeling / Docs | First-Class Markdown Notes (Architecture Decision Cards & Canvas Sticky Callouts) | Medium | 🟢 Resolved | Verified (TC-S8-NOTE-01..03, SEC-S8-02, ADR & Sticky cards, SVG/Canvas export) |
+| **ISSUE-52** | Architecture / Reliability | Flow-Directed Dominator Tree SPOF & Downstream Blast Radius Highlighting | High | 🟢 Resolved | Verified (TC-S8-DOM-01..03, SEC-S8-03, iterative dataflow, blast radius badge & halo) |
+| **ISSUE-53** | Canvas / UX & Typography | Authentic Excalidraw Text Tool & Input UX ('A' Icon, Frameless Text, Non-Enter Commit) | High | 🟢 Resolved | Verified (TC-S8-TXT-01..04, SEC-S8-04, letter 'A' icon, borderless floating textarea) |
 
 ---
 
@@ -860,51 +860,53 @@ Here is the exact correlation:
 
 ### ISSUE-50: SQL DDL → ERD Reverse Parser (CREATE TABLE Ingestion with PK/FK Links)
 - **Reported**: Feature request & Sprint 8 Milestone 8.1. Users cannot import existing database schemas (`.sql` DDL files) onto the canvas. Currently, ERD tables can only be manually created and exported to SQL DDL (`ERD → SQL DDL`), but there is no reverse path to ingest SQL schemas into visual interactive table cards.
-- **Root Cause**: `src/codegen.js` was architected with export functions (`exportToSql(elements, dialect)`) but lacks an AST parser or reverse tokenization module to parse `CREATE TABLE (...)` statements back into `erd-table` elements and relational `connector` lines.
-- **Planned Resolution**:
-  - Implement `parseSqlToErd(sqlContent)` in `src/codegen.js`.
-  - Support PostgreSQL, MySQL, and ANSI standard DDL: extract table names, column names, data types, primary keys (`PRIMARY KEY`), foreign keys (`FOREIGN KEY ... REFERENCES ...`), nullable/not-null attributes, and unique constraints.
-  - Wire drag-and-drop file ingestion in `src/main.js` for `.sql` extensions, plus an "Import SQL DDL" button in the Export/Import modal.
-  - Compute automatic grid layout coordinates ($x, y$) for imported tables and automatically generate foreign-key orthogonal arrows connecting referenced PK columns to FK columns.
-- **Status**: 🔵 Planned (Sprint 8)
-- **Verification**: Planned via test cases `TC-S8-SQL-01`, `TC-S8-SQL-02`, `TC-S8-SQL-03`, and security test `SEC-S8-01`.
+- **Root Cause**: `src/codegen.js` was architected with export functions (`exportToSql(elements, dialect)`) but lacked an AST parser or reverse tokenization module to parse `CREATE TABLE (...)` statements back into `erd-table` elements and relational `connector` lines.
+- **Resolution**:
+  - Implemented `parseSqlToErd(sqlContent, options)` in [src/codegen.js](file:///c:/Users/ahmed/.gemini/antigravity/scratch/excalicraft/src/codegen.js) using depth-balanced parenthesis scanning to handle types with internal arguments (`VARCHAR(255)`, `DECIMAL(10,2)`).
+  - Supports PostgreSQL, MySQL backtick dialect, and ANSI standard DDL: extracts table names, column names, types, inline and table-level `PRIMARY KEY` and `FOREIGN KEY ... REFERENCES` constraints.
+  - Automatically calculates grid layout coordinates ($x, y$) for imported tables and generates orthogonal relational arrow connectors connecting PK/FK tables.
+  - Enforced 5MB file size limit ceiling (SEC-S8-01) with friendly toast notification.
+  - Added drag-and-drop file ingestion in [src/main.js](file:///c:/Users/ahmed/.gemini/antigravity/scratch/excalicraft/src/main.js) for `.sql` extensions, plus an "Import SQL DDL" file input in the Export/Import modal.
+- **Status**: 🟢 Resolved
+- **Verification**: Verified via test cases `TC-S8-SQL-01`, `TC-S8-SQL-02`, `TC-S8-SQL-03`, and security test `SEC-S8-01` in `tests/sprint8_test.js`.
 
 ---
 
 ### ISSUE-51: First-Class Markdown Notes (Architecture Decision Cards & Canvas Sticky Callouts)
 - **Reported**: Feature request & Sprint 8 Milestone 8.2. Users cannot create dedicated architectural documentation (e.g., ADR notes, design trade-offs, security assumptions, deployment runbooks) or anchor sticky callouts to specific system components. Standard text elements lack structured formatting, headers, lists, code blocks, and callout styling.
-- **Root Cause**: The canvas only supports raw text elements (`type: 'text'`) rendered in basic single/multiline font styles, with no markdown parsing, syntax highlighting, or structured card element types.
-- **Planned Resolution**:
-  - Add `'note'` element type to canvas state with subtypes `'adr'` and `'sticky'`.
-  - Implement client-side lightweight Markdown parsing in `src/renderer.js` supporting `# H1`, `## H2`, `**bold**`, `*italic*`, `- [ ] lists`, `` `code` ``, and blockquotes `>`.
-  - Add Note tool to palette and contextual inspector properties (note title, markdown editor, theme swatch: yellow sticky, blue ADR, green runbook, purple spec).
-  - Include full note contents and callouts in PNG, SVG, PDF, and `.excalidraw` exports.
-- **Status**: 🔵 Planned (Sprint 8)
-- **Verification**: Planned via test cases `TC-S8-NOTE-01`, `TC-S8-NOTE-02`, `TC-S8-NOTE-03`, and security test `SEC-S8-02`.
+- **Root Cause**: The canvas only supported raw text elements (`type: 'text'`) rendered in basic single/multiline font styles, with no markdown parsing, syntax highlighting, or structured card element types.
+- **Resolution**:
+  - Added `'note'` element type to canvas state supporting `cardStyle: 'sticky'` and `'adr'`.
+  - Implemented dedicated note rendering in [src/renderer.js](file:///c:/Users/ahmed/.gemini/antigravity/scratch/excalicraft/src/renderer.js) (`renderNoteCard`) supporting dog-ear folded sticky notes and structured ADR cards with accent top bars, status badges (`PROPOSED`, `ACCEPTED`, `SUPERSEDED`), and markdown heading/bullet rendering.
+  - Implemented SVG vector export for notes in [src/export.js](file:///c:/Users/ahmed/.gemini/antigravity/scratch/excalicraft/src/export.js) with strict XML entity encoding and inline event handler sanitization (SEC-S8-02).
+  - Added quick-add buttons `#btn-add-sticky-note` and `#btn-add-adr-note` under `canvasQuickAddSection` in [index.html](file:///c:/Users/ahmed/.gemini/antigravity/scratch/excalicraft/index.html) and `#noteInspectorSection` in the properties dock.
+- **Status**: 🟢 Resolved
+- **Verification**: Verified via test cases `TC-S8-NOTE-01`, `TC-S8-NOTE-02`, `TC-S8-NOTE-03`, and security test `SEC-S8-02` in `tests/sprint8_test.js`.
 
 ---
 
 ### ISSUE-52: Flow-Directed Dominator Tree SPOF & Downstream Blast Radius Highlighting
 - **Reported**: Feature request & Sprint 8 Milestone 8.3. Current SPOF detection relies on undirected graph bridge/articulation points (Tarjan's algorithm). This fails to model directed operational dependencies where a service failure only cascades in the direction of RPC / message flow. Furthermore, when hovering or selecting a suspected SPOF node, users cannot see which downstream services and customer endpoints would be completely cut off (blast radius).
-- **Root Cause**: `src/graph.js` treats connections as undirected edges for biconnectivity analysis, ignoring arrow head direction (`sourceId` $\to$ `targetId`), entry point roots, and immediate dominator tree mathematical properties.
-- **Planned Resolution**:
-  - Implement flow-directed dominator tree analysis (`computeDominatorTree(elements, entryNodeIds)`) in `src/graph.js` using iterative dataflow or Lengauer-Tarjan algorithm.
-  - Identify non-trivial dominator nodes ($idom(w) = v$ where failing $v$ leaves $w$ unreachable from all roots).
-  - Add interactive "Blast Radius" visualization on canvas: hovering or selecting an SPOF node highlights its entire dominated downstream subgraph in high-visibility crimson red with pulsing danger borders and an impact metric pill (e.g., `⚠️ Blast Radius: 4 services cut off`).
-- **Status**: 🔵 Planned (Sprint 8)
-- **Verification**: Planned via test cases `TC-S8-DOM-01`, `TC-S8-DOM-02`, `TC-S8-DOM-03`, and security test `SEC-S8-03`.
+- **Root Cause**: `src/graph.js` treated connections as undirected edges for biconnectivity analysis, ignoring arrow head direction (`sourceId` $\to$ `targetId`), entry point roots, and immediate dominator tree mathematical properties.
+- **Resolution**:
+  - Implemented flow-directed dominator tree analysis (`computeDominatorTree()`) in [src/graph.js](file:///c:/Users/ahmed/.gemini/antigravity/scratch/excalicraft/src/graph.js) using iterative dataflow analysis with a 50-iteration safeguard against pathological cycles (SEC-S8-03).
+  - Implemented `getBlastRadius(nodeId)` computing the set of all downstream nodes strictly dominated by the target node.
+  - Integrated directed SPOF detection into `detectSpofs()`.
+  - Added real-time blast radius canvas visualizer in [src/renderer.js](file:///c:/Users/ahmed/.gemini/antigravity/scratch/excalicraft/src/renderer.js): when metrics overlay is active and an SPOF node is selected, renders a prominent dashed amber blast radius halo and downstream count badge.
+- **Status**: 🟢 Resolved
+- **Verification**: Verified via test cases `TC-S8-DOM-01`, `TC-S8-DOM-02`, `TC-S8-DOM-03`, and security test `SEC-S8-03` in `tests/sprint8_test.js`.
 
 ---
 
 ### ISSUE-53: Authentic Excalidraw Text Tool & Input UX ('A' Icon, Frameless Text, Non-Enter Commit)
 - **Reported**: UX bug & external parity review (Sprint 8 Milestone 8.4). When selecting the Text tool (`T`) and typing, the text does not appear on canvas unless the user hits Enter. In Excalidraw, text appears interactively on canvas without requiring an Enter key to materialize. Furthermore, the toolbar button uses a Word-like boxed `T` icon, and the canvas displays a heavy text-box container border rather than clean, seamless floating text matching Excalidraw.
 - **Root Cause**:
-  1. Toolbar button `#tool-text` in `index.html` uses an SVG with a square box around `T` (`<rect .../><path d="M... T"/>`), looking like Microsoft Word's "Insert Text Box" instead of Excalidraw's pure typography `A` (Letter A) icon.
-  2. Canvas text input mechanism creates an inline `<textarea id="inlineTextEditor">` with rigid box borders, and event handling required Enter key submission or had fragile blur-commit triggers, causing uncommitted text to vanish if the user clicked away or typed multi-line notes.
-- **Planned Resolution**:
-  - Replace `#tool-text` SVG in `index.html` with Excalidraw's authentic clean Letter `A` icon without any outer box frame.
-  - Redesign `#inlineTextEditor` CSS in `src/style.css` to be completely transparent, borderless, and seamless, perfectly matching the active font family, size, line-height, and color of the canvas text element.
-  - Refactor text creation lifecycle in `src/main.js`: clicking canvas instantly places a floating text cursor; typing immediately updates canvas state; clicking outside or pressing Escape cleanly commits the text element without requiring Enter. Shift+Enter / Enter naturally inserts newlines for multiline text. Empty text on blur gracefully cleans up without leaving ghost elements.
-- **Status**: 🔵 Planned (Sprint 8)
-- **Verification**: Planned via test cases `TC-S8-TXT-01`, `TC-S8-TXT-02`, `TC-S8-TXT-03`, `TC-S8-TXT-04`, and security test `SEC-S8-04`.
+  1. Toolbar button `#tool-text` in `index.html` used an SVG with a square box around `T` (`<rect .../><path d="M... T"/>`), looking like Microsoft Word's "Insert Text Box" instead of Excalidraw's pure typography `A` (Letter A) icon.
+  2. Canvas text input mechanism created an inline `<textarea id="inlineTextEditor">` with rigid box borders, and event handling required Enter key submission or had fragile blur-commit triggers, causing uncommitted text to vanish if the user clicked away or typed multi-line notes.
+- **Resolution**:
+  - Replaced `#tool-text` SVG in [index.html](file:///c:/Users/ahmed/.gemini/antigravity/scratch/excalicraft/index.html) with Excalidraw's authentic typography Letter `A` icon without an outer box.
+  - Re-styled `#inlineTextEditor` in [src/style.css](file:///c:/Users/ahmed/.gemini/antigravity/scratch/excalicraft/src/style.css) with zero border, zero outline, transparent background, and proper padding matching canvas text baseline.
+  - In [src/main.js](file:///c:/Users/ahmed/.gemini/antigravity/scratch/excalicraft/src/main.js): implemented `this.activeInlineTextCommit()` invoked immediately in `onPointerDown` when clicking anywhere on canvas, synchronously committing text before processing tool clicks. Allowed Enter to create newlines in multiline notes, while Escape, Ctrl+Enter, or blur commits immediately without loss.
+- **Status**: 🟢 Resolved
+- **Verification**: Verified via test cases `TC-S8-TXT-01`, `TC-S8-TXT-02`, `TC-S8-TXT-03`, `TC-S8-TXT-04`, and security test `SEC-S8-04` in `tests/sprint8_test.js`.
 

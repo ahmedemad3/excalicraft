@@ -2773,6 +2773,30 @@ body.mode-presentation .minimap-container {
   box-shadow: 0 0 16px rgba(239, 68, 68, 0.35);
 }
 
+/* ==========================================================================
+   Sprint 8: Authentic Seamless Excalidraw Floating Text Editor
+   ========================================================================== */
+#inlineTextEditor,
+.inline-text-editor {
+  position: absolute;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  resize: none;
+  overflow: hidden;
+  padding: 0 !important;
+  margin: 0 !important;
+  white-space: pre-wrap;
+  word-break: break-word;
+  box-sizing: content-box;
+  color: var(--text-normal, #1e1e1e);
+  caret-color: var(--primary, #6965db);
+  z-index: 1000;
+  line-height: 1.25;
+}
 
-
-
+.theme-dark #inlineTextEditor,
+.theme-dark .inline-text-editor {
+  color: #e0e0e0;
+}

@@ -15,6 +15,8 @@ This master document tracks STRIDE threat modeling, vulnerability assessments, a
 | **Sprint 3** | **System Design & C4 Architecture** | • Graph Cycle Traversal Infinite Loop DoS<br>• Articulation Point (SPOF) Recursion Limit<br>• Negative / NaN / Astronomical Metric Injections<br>• Subnet & VPC Drag-Containment Recursion<br>• Telemetry Overlay Canvas Render Spoofing | 5 Cases | 🟢 Verified Safe |
 | **Sprint 4** | **Developer Interop, Code Generation & Media Ingestion** | • SQL DDL Schema Identifier Injection<br>• Malicious Mermaid AST Syntax Injection<br>• Generated Script Escape in Browser Clipboard<br>• OpenAPI Recursive `$ref` Traversal DoS<br>• OpenAPI Imported Payload DOM / Canvas XSS<br>• SVG/Image File MIME Spoofing & Script Injection<br>• Image Decompression Bomb / Memory Exhaustion DoS | 7 Cases | 🟢 Verified Safe / Guarded |
 | *Sprint 5* | **AI Generator & Codebase Ingestion** | • Prompt Injection via Repo READMEs<br>• Malicious SSRF in Git Clone Fetch<br>• Unsanitized AST Graph Parsing | *Planned* | ⚪ Pending |
+| **Sprint 7** | **Graph Latency, Heuristics & Dev Middleware** | • Path traversal on /api/save-gif (SEC-S7-01)<br>• Disallowed extension upload rejection (SEC-S7-02)<br>• GIF payload size ceiling 20MB (SEC-S7-03)<br>• Defense-in-depth confinement (SEC-S7-04) | 4 Cases | 🟢 Verified Safe |
+| **Sprint 8** | **SQL Ingestion, Markdown Notes, Dominators & Text Input** | • SQL DDL ReDoS & 5MB memory ceiling (SEC-S8-01)<br>• Markdown Notes XSS & inline handler stripping (SEC-S8-02)<br>• Dominator cycle safe iteration bound (SEC-S8-03)<br>• Canvas floating text DOM injection safety (SEC-S8-04) | 4 Cases | 🟢 Verified Safe |
 
 ---
 
