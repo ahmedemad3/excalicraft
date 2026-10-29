@@ -5,9 +5,7 @@ node_modules/
 dist/
 dist
 
-# Documentation & internal notes
-doc/
-doc
+
 
 # Logs & temp
 *.log

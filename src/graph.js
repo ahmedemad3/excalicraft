@@ -163,13 +163,18 @@ export class ArchitectureGraph {
     const targetNodes = new Set();
 
     for (const [id, node] of this.nodes) {
+      const role = String(node.role || '').toLowerCase();
       const badge = String(node.badge || '').toUpperCase();
       const title = String(node.title || '').toLowerCase();
 
-      if (this.inEdges.get(id).length === 0 || badge === 'EDGE' || badge === 'CLIENT' || title.includes('client') || title.includes('gateway')) {
+      // Check role first, fallback to heuristics
+      const isEntry = role === 'entry' || (role === '' && (this.inEdges.get(id).length === 0 || badge === 'EDGE' || badge === 'CLIENT' || title.includes('client') || title.includes('gateway')));
+      if (isEntry) {
         entryNodes.add(id);
       }
-      if (badge === 'DATABASE' || badge === 'CACHE' || badge === 'QUEUE' || node.type === 'erd-table' || title.includes('db') || title.includes('postgres')) {
+
+      const isTarget = role === 'datastore' || role === 'cache' || role === 'queue' || (role === '' && (badge === 'DATABASE' || badge === 'CACHE' || badge === 'QUEUE' || node.type === 'erd-table' || (title.includes('postgres') || title.includes('aurora') || title.includes('mysql') || (title.includes('db') && !title.includes('feedback')))));
+      if (isTarget) {
         targetNodes.add(id);
       }
     }
@@ -214,16 +219,18 @@ export class ArchitectureGraph {
 
     // Stateful un-replicated database / storage SPOF detection
     for (const [id, node] of this.nodes) {
+      const role = String(node.role || '').toLowerCase();
       const badge = String(node.badge || '').toUpperCase();
       const title = String(node.title || '').toLowerCase();
       const subtitle = String(node.subtitle || '').toLowerCase();
 
-      const isStateful = badge === 'DATABASE' || badge === 'PRIMARY RDBMS' || title.includes('database') || title.includes('aurora') || title.includes('postgres') || title.includes('mysql');
+      const isReplicated = node.isReplicated === true || node.isRedundant === true;
+      const isStateful = role === 'datastore' || (role === '' && (badge === 'DATABASE' || badge === 'PRIMARY RDBMS' || title.includes('database') || title.includes('aurora') || title.includes('postgres') || title.includes('mysql')));
       const isExplicitSpof = subtitle.includes('spof') || subtitle.includes('un-replicated') || title.includes('spof');
 
-      if (isStateful && (isExplicitSpof || (!node.isRedundant && !subtitle.includes('replica')))) {
+      if (isStateful && !isReplicated && (isExplicitSpof || (!node.isRedundant && !subtitle.includes('replica')))) {
         const hasReplica = Array.from(this.nodes.values()).some(n =>
-          n.id !== id && (String(n.title).toLowerCase().includes('replica') || String(n.subtitle).toLowerCase().includes('replica') || String(n.subtitle).toLowerCase().includes('standby'))
+          n.id !== id && (n.isReplicated || String(n.title).toLowerCase().includes('replica') || String(n.subtitle).toLowerCase().includes('replica') || String(n.subtitle).toLowerCase().includes('standby'))
         );
         if (!hasReplica) {
           spofs.add(id);
@@ -233,7 +240,7 @@ export class ArchitectureGraph {
 
     // Explicit manual SPOF overrides or properties
     for (const [id, node] of this.nodes) {
-      if (node.isSpof === false || node.spof === false) {
+      if (node.isSpof === false || node.spof === false || node.isReplicated === true) {
         spofs.delete(id);
       } else if (node.isSpof === true || node.spof === true) {
         spofs.add(id);
@@ -249,7 +256,7 @@ export class ArchitectureGraph {
   isCriticalBridge(nodeId) {
     const node = this.nodes.get(nodeId);
     if (!node) return false;
-    if (node.isRedundant || String(node.subtitle || '').toLowerCase().includes('replica') || String(node.title || '').toLowerCase().includes('replica') || String(node.subtitle || '').toLowerCase().includes('standby')) {
+    if (node.isReplicated || node.isRedundant || String(node.subtitle || '').toLowerCase().includes('replica') || String(node.title || '').toLowerCase().includes('replica') || String(node.subtitle || '').toLowerCase().includes('standby')) {
       return false;
     }
 
@@ -261,48 +268,56 @@ export class ArchitectureGraph {
   }
 
   /**
-   * Calculates cumulative critical path latency between two nodes (or from root)
-   * Cycles are safely handled with a visited set
+   * Calculates cumulative critical path (longest latency path) between two nodes (or from root)
+   * Uses DFS with per-path stack tracking to correctly find the critical path on DAGs (BUG-01)
+   * Cycles are safely handled with an onPath set and bounded recursion depth (SEC-S3-01 / SEC-S3-02)
    */
   calculatePathLatency(startId, endId) {
     if (!this.nodes.has(startId)) return { totalLatency: 0, path: [] };
 
     const startNode = this.nodes.get(startId);
     const startLatency = Number(startNode?.latencyMs ?? startNode?.latency ?? 0);
-    const queue = [{ id: startId, latency: startLatency, path: [startId] }];
-    const visited = new Set([startId]);
 
-    let maxLatency = 0;
-    let criticalPath = [];
+    let maxLatency = startLatency;
+    let criticalPath = [startId];
 
-    while (queue.length > 0) {
-      const { id, latency, path } = queue.shift();
+    const MAX_DEPTH = 500;
 
-      if (id === endId || (this.adj.get(id)?.size === 0 && !endId)) {
-        if (latency >= maxLatency) {
-          maxLatency = latency;
-          criticalPath = path;
+    const dfs = (currId, currentLatency, currentPath, onPath, depth) => {
+      if (depth > MAX_DEPTH) return;
+
+      const isTerminal = currId === endId || ((this.adj.get(currId)?.size === 0 || !this.adj.get(currId)) && !endId);
+
+      if (isTerminal) {
+        if (currentLatency > maxLatency || (currentLatency === maxLatency && currentPath.length > criticalPath.length)) {
+          maxLatency = currentLatency;
+          criticalPath = [...currentPath];
         }
-        if (id === endId) continue;
+        if (currId === endId) return;
       }
 
-      for (const nextId of this.adj.get(id) || []) {
-        if (!visited.has(nextId)) {
-          visited.add(nextId);
+      for (const nextId of this.adj.get(currId) || []) {
+        if (!onPath.has(nextId)) {
           const nextNode = this.nodes.get(nextId);
-          const edge = this.edges.find(e => e.from === id && e.to === nextId);
+          const edge = this.edges.find(e => e.from === currId && e.to === nextId);
 
           const edgeLatency = Number(edge?.latencyMs ?? edge?.latency ?? 0);
           const nodeLatency = Number(nextNode?.latencyMs ?? nextNode?.latency ?? 0);
+          const addedLatency = edgeLatency + nodeLatency;
 
-          queue.push({
-            id: nextId,
-            latency: latency + edgeLatency + nodeLatency,
-            path: [...path, nextId]
-          });
+          onPath.add(nextId);
+          currentPath.push(nextId);
+
+          dfs(nextId, currentLatency + addedLatency, currentPath, onPath, depth + 1);
+
+          currentPath.pop();
+          onPath.delete(nextId);
         }
       }
-    }
+    };
+
+    const onPath = new Set([startId]);
+    dfs(startId, startLatency, [startId], onPath, 0);
 
     return { totalLatency: maxLatency, path: criticalPath };
   }
@@ -316,7 +331,11 @@ export class ArchitectureGraph {
     for (const [id, node] of this.nodes) {
       const inEdges = this.inEdges.get(id) || [];
       const totalIncomingQps = inEdges.reduce((sum, e) => sum + (Number(e.qps) || 0), 0);
-      const capacity = Number(node.maxCapacityQps ?? node.maxCapacity) || (node.badge === 'DATABASE' ? 5000 : 20000);
+
+      const hasConfiguredCapacity = (node.maxCapacityQps !== undefined && node.maxCapacityQps !== null && node.maxCapacityQps !== '') ||
+                                    (node.maxCapacity !== undefined && node.maxCapacity !== null && node.maxCapacity !== '');
+      const rawCapacity = Number(node.maxCapacityQps ?? node.maxCapacity);
+      const capacity = hasConfiguredCapacity && rawCapacity > 0 ? rawCapacity : (node.badge === 'DATABASE' ? 5000 : 20000);
 
       const isSaturated = totalIncomingQps > capacity;
       const saturationRatio = capacity > 0 ? (totalIncomingQps / capacity) : 0;
@@ -326,6 +345,8 @@ export class ArchitectureGraph {
         inflowQps: totalIncomingQps,
         capacity,
         maxCapacity: capacity,
+        hasConfiguredCapacity,
+        capacityNotConfigured: !hasConfiguredCapacity,
         isSaturated,
         isOverloaded: isSaturated,
         saturationRatio: Math.round(saturationRatio * 100),

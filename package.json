@@ -1,13 +1,13 @@
 {
   "name": "excalicraft",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Animated architecture whiteboard with SPOF analysis, C4 diagrams, ERD-to-SQL, and Mermaid.js bi-directional sync.",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node tests/run_all.js"
   },
   "dependencies": {
     "gifenc": "^1.0.3",

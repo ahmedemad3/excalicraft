@@ -37,6 +37,19 @@
 
 ---
 
+## 💡 One Tool Instead of Five
+
+| You'd normally open… | In ExcaliCraft |
+|---|---|
+| **Excalidraw** for a hand-drawn whiteboard | Rough.js hand-drawn style, freehand pen, images, and `.excalidraw` scene import |
+| **Draw.io / Lucidchart** for architecture boxes | Architecture node cards, cloud and tech icons, VPC / subnet / cluster boundaries, swimlanes |
+| **A C4 tool** | C4 Person, System, Container, Component, Database, Queue, and boundaries |
+| **dbdiagram / DrawSQL** for ERDs | ERD table cards with PK/FK and typed columns, **export to SQL DDL** (PostgreSQL, MySQL, ANSI) |
+| **Mermaid Live Editor** | Export to Mermaid and import Mermaid text back onto the canvas |
+| **A notes app** | Rich text tool today; dedicated markdown note cards on the [roadmap](#-roadmap) |
+
+---
+
 ## ⚡ Core Capabilities & Innovation Highlights
 
 ```
@@ -62,10 +75,12 @@
 - **Boundaries with Hierarchy**: Dedicated C4 Enterprise Boundaries (`[ENTERPRISE]`) and System Boundaries (`[SYSTEM]`) with authentic Simon Brown styling and line dash control.
 - **Dedicated C4 Inspector**: Live-edit title, description, shape morphing (Person, System, Database, Queue), external toggle, type tags, and curated C4 color palettes (Deep Navy `#08427b`, C4 Blue `#1168bd`, Sky `#438dd5`, Muted Grey `#6c757d`).
 
-### 2. ⚡ Quantitative Telemetry & Tarjan Graph Intelligence
+### 2. ⚡ Quantitative Flow Simulation & Tarjan Graph Intelligence
 - **Automated SPOF Detection**: Uses Tarjan’s articulation points algorithm on the active architecture graph to detect and highlight single points of failure in bright warning crimson (`#e03131`) with pulsing beacon rings.
 - **Critical Path Latency Calculator**: Accumulates hop-by-hop network delays and service processing latencies (e.g. `Client (5ms) + Hop (10ms) + Gateway (15ms) + Hop (20ms) + Service (25ms) = 75ms E2E`).
 - **Saturated Capacity Overload Warnings**: Computes inflow QPS against service capacity thresholds; alerts with live utilization badges when a node is operating at 150% or 200% saturation.
+
+> **💡 Flow Simulation Disclaimer**: The flow overlay is an interactive visual simulation aid computed from user-configured parameters (QPS, hop latency, and capacity thresholds). It is designed for system design visualization, architectural reviews, and capacity planning—not live APM monitoring or load testing.
 
 ### 3. ☁️ Multi-Cloud & Network Enclosures
 - **Rich Cloud Iconography**: Built-in SVG vector icons for AWS (Lambda, S3, EC2, RDS, DynamoDB, API Gateway, CloudFront, SQS, CloudWatch), Google Cloud (Cloud Run, GCS, BigQuery, Pub/Sub, GKE, Cloud SQL), Azure (App Service, Functions, Blob, Cosmos DB, AKS, Event Grid), and Modern Tech (Docker, Kubernetes, Kafka, Redis, Postgres, MongoDB).
@@ -81,10 +96,25 @@
 - **Decision Trees & Flowcharts**: Process action pills, decision diamonds (`◇`), fork bars, and join bars with condition labeling.
 
 ### 6. 🎬 Video Production, Animated GIF & Multi-Format Export
-- **Looping Animated GIF**: Generates 16-frame buttery smooth looping animated GIFs directly in the browser—ideal for video editing, presentations, documentation, and social sharing.
+- **Looping Animated GIF**: Generates 16-frame buttery smooth looping animated GIFs directly in the browser—ideal for video editing, presentations, documentation, and pull requests.
 - **Skia-Grade Multi-Page PDF**: Automatically calculates optimal orientation and executes clean vector page slicing.
 - **Clean SVG & PNG**: Embedded Google Fonts (`Outfit`, `Caveat`, `JetBrains Mono`) ensuring universal font rendering on any computer or mobile device.
-- **100% Excalidraw Compatible**: Ingests and exports native `.excalidraw` and compressed SVG scene payloads with zero data loss.
+- **Excalidraw Native & Compressed SVG Ingestion**: Full support for native `.excalidraw` JSON and compressed deflate SVG scenes, with full image decoding and custom canvas background tinting.
+- **🔄 Auto-Save & Session Restore**: Seamless 600ms debounced local-storage autosave ensures your canvas state and custom node layouts survive unexpected browser closes or page refreshes.
+
+#### 🔄 Complete Import & Export Capabilities Matrix
+
+| Format | Export | Import | Details & Notes |
+|---|:--:|:--:|---|
+| **PNG** | ✅ | ✅ | Full canvas or active selection export; drag-and-drop image import |
+| **SVG** | ✅ | ✅ | Clean vector markup; extracts embedded `.excalidraw` deflate scenes |
+| **Multi-Page PDF** | ✅ | ❌ | Auto-calculated orientation and vector page slicing via jsPDF |
+| **Animated GIF** | ✅ | ✅ | 16-frame buttery looping pulse animation via gifenc |
+| **Native Scene JSON** | ✅ | ✅ | Complete scene graph serialization and restoration |
+| **.excalidraw JSON** | ❌ | ✅ | Direct drag-and-drop scene ingestion |
+| **Images (PNG, JPG, WebP, GIF)** | ❌ | ✅ | Multi-image placement on canvas with resize handles |
+| **Mermaid.js** | ✅ | ✅ | Flowchart, Sequence, C4, and State Machine syntax |
+| **SQL DDL** | ✅ | 🗓 Planned | One-click export to PostgreSQL, MySQL, and ANSI DDL from ERD tables |
 
 ---
 
@@ -354,6 +384,50 @@ npm run build
 npm run preview
 ```
 
+### Running Automated Tests
+```bash
+# Run all automated verification suites
+npm test
+```
+
+### Regenerating README Template GIFs (Contributors)
+The development server includes a helper endpoint (`/api/save-gif`) for automated asset capture:
+```bash
+npm run dev       # Start the local development server
+```
+Open your browser at `http://localhost:5174/`, open the DevTools Console, and run:
+```javascript
+generateAllTemplateGifs()
+```
+
+> **🔒 Security Caution:** The `/api/save-gif` endpoint is a development-mode convenience only and is disabled in production builds. Do not run the development server with `--host` on untrusted networks.
+
+---
+
+## ⚠️ Known Limitations
+
+ExcaliCraft is actively developed. Please review our current functional boundaries before relying on specific edge cases:
+
+- **Critical Path Latency**: Path latency accumulation currently computes the first-discovered traversal route; a full DAG longest-path DFS upgrade is actively in progress.
+- **Capacity Saturation Defaults**: If a service node's max capacity is not explicitly defined in properties, it defaults to 20,000 QPS (5,000 for databases). Explicit capacity values are recommended for accurate saturation alerts.
+- **SPOF Detection Heuristics**: Undirected Tarjan articulation point analysis uses title and badge heuristics to differentiate entrypoints and databases; mark replica/standby nodes or use the `isReplicated` attribute to suppress intentional single points.
+- **Mermaid Import Scope**: Currently supports core Flowcharts, Sequence diagrams, and C4 syntax. Chained edges (`A --> B --> C`), `subgraph` scopes, and `stateDiagram-v2` are being expanded.
+- **SQL DDL**: ERD tables support full export to PostgreSQL, MySQL, and ANSI SQL. Reverse import (`CREATE TABLE` -> ERD) is planned.
+- **Excalidraw Ingestion**: Ingests standard `.excalidraw` JSON and compressed SVG payloads; full round-trip fidelity for every proprietary third-party tool extension is not guaranteed.
+
+---
+
+## 🗺️ Roadmap
+
+1. **Critical-Path Latency Engine**: Longest-path topological DAG traversal for accurate multi-branch bottleneck latency calculation.
+2. **SQL DDL → ERD Reverse Parser**: Drag-and-drop `.sql` schema files to automatically generate interactive table cards with PK/FK links.
+3. **Advanced Mermaid Parser**: Support for chained edges (`A --> B --> C`), nested `subgraph` boundaries, and non-blocking line-by-line syntax warning recovery.
+4. **First-Class Markdown Notes**: Rich architectural documentation cards and per-element sticky notes rendered on canvas and included in exports.
+5. **Explicit Node Archetypes & Roles**: Formal `role` properties (gateway, worker, datastore, cache) and `isReplicated` toggles to replace title heuristics.
+6. **Directed Dominator Tree SPOF**: Flow-directed dominator tree analysis with real-time affected downstream path highlighting.
+7. **Arabic & RTL Canvas Typography**: Native bidirectional text layout and font rendering for right-to-left documentation.
+8. **Automated CI/CD Verification**: GitHub Actions workflow running tests and production builds on every pull request.
+
 ---
 
 ## 🏗️ Codebase Architecture
@@ -373,7 +447,7 @@ excalicraft/
 │   ├── icons.js            # Lucide & Cloud architecture icon registry (AWS, GCP, Azure, Tech)
 │   ├── presenter.js        # Fullscreen presentation mode with smooth camera choreographer
 │   ├── minimap.js          # Live interactive viewport overview navigator
-│   ├── codegen.js          # Infrastructure as Code (Terraform / Docker Compose) export
+│   ├── codegen.js          # SQL DDL generation from ERD tables (PostgreSQL, MySQL, ANSI)
 │   └── mermaid.js          # Mermaid.js & PlantUML bidirectional diagram converter
 ├── img/                    # High-fidelity looping animated GIFs for all 16 architecture templates
 ├── doc/                    # Architectural specs, handoffs, test scenarios, and issues log
@@ -393,6 +467,7 @@ excalicraft/
 ## 📜 License
 
 ExcaliCraft is open-source software licensed under the **MIT License**.
+
 
 ---
 

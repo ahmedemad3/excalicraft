@@ -700,13 +700,16 @@ export function importFromMermaid(mermaidText) {
     if (header.startsWith('graph') || header.startsWith('flowchart')) {
       return parseFlowchart(rawLines);
     }
+    if (header.startsWith('statediagram') || header.startsWith('statediagram-v2')) {
+      return parseStateDiagram(rawLines);
+    }
     if (header.startsWith('erdiagram')) {
       return parseErDiagram(rawLines);
     }
 
     return {
       success: false,
-      error: `Unsupported diagram type: "${rawLines[0]}". Expected C4Context, sequenceDiagram, graph TD/LR, or erDiagram.`
+      error: `Unsupported diagram type: "${rawLines[0]}". Expected C4Context, sequenceDiagram, graph TD/LR, stateDiagram-v2, or erDiagram.`
     };
   } catch (err) {
     return {
@@ -873,21 +876,55 @@ function parseSequenceDiagram(lines) {
 }
 
 /**
+ * Splits chained Mermaid edges (e.g. A --> B --> C) into pairwise lines.
+ */
+function splitChainedEdges(line) {
+  const arrowRegex = /(-->|==>|-\.->)\s*(?:\|([^|]+)\|)?/g;
+  const matches = [...line.matchAll(arrowRegex)];
+  if (matches.length <= 1) {
+    return [line];
+  }
+
+  const results = [];
+  let lastEnd = 0;
+  const parts = [];
+  for (let m = 0; m < matches.length; m++) {
+    const match = matches[m];
+    const nodeText = line.substring(lastEnd, match.index).trim();
+    parts.push({
+      nodeText,
+      arrow: match[1],
+      label: match[2] ? match[2].trim() : ''
+    });
+    lastEnd = match.index + match[0].length;
+  }
+  const finalNodeText = line.substring(lastEnd).trim();
+  parts.push({ nodeText: finalNodeText });
+
+  for (let k = 0; k < parts.length - 1; k++) {
+    const from = parts[k].nodeText;
+    const op = parts[k].arrow;
+    const label = parts[k].label;
+    const to = parts[k + 1].nodeText;
+    results.push(label ? `${from} ${op}|${label}| ${to}` : `${from} ${op} ${to}`);
+  }
+  return results;
+}
+
+/**
  * Parses Mermaid flowchart / graph TD / graph LR lines into canvas elements.
  */
 function parseFlowchart(lines) {
   const elements = [];
   const nodeDefs = new Map(); // id -> { label, shape }
   const edges = []; // { from, to, label }
+  const subgraphs = []; // { id, title, nodeIds: Set }
+  let currentSubgraph = null;
+  const warnings = [];
 
   const header = lines[0].toLowerCase();
   const isHorizontal = header.includes('lr') || header.includes('rl');
 
-  // Regexes for node shapes:
-  // id{"condition"} -> diamond
-  // id(["action"]) -> activity-action
-  // id[("database")] -> database
-  // id["label"] or id[label] -> rectangle
   const parseNodeShape = token => {
     let match = token.match(/^([a-zA-Z0-9_]+)\s*\{\s*["']?([^"']+)["']?\s*\}$/);
     if (match) return { id: match[1], label: match[2], shape: 'diamond' };
@@ -904,7 +941,6 @@ function parseFlowchart(lines) {
     match = token.match(/^([a-zA-Z0-9_]+)\s*\(\s*["']?([^"']+)["']?\s*\)$/);
     if (match) return { id: match[1], label: match[2], shape: 'rectangle' };
 
-    // Simple raw identifier
     match = token.match(/^([a-zA-Z0-9_]+)$/);
     if (match) return { id: match[1], label: match[1], shape: 'rectangle' };
 
@@ -912,51 +948,77 @@ function parseFlowchart(lines) {
   };
 
   for (let i = 1; i < lines.length; i++) {
-    const line = lines[i];
+    const rawLine = lines[i];
 
-    // Check for edge: A --> B or A -->|label| B or A -- label --> B
-    const edgeMatch = line.match(/^(.+?)\s*(?:-->|==>|-\.->)\s*(?:\|([^|]+)\|)?\s*(.+)$/);
-    if (edgeMatch) {
-      const fromPart = edgeMatch[1].trim();
-      const edgeLabel = edgeMatch[2] ? edgeMatch[2].trim() : '';
-      const toPart = edgeMatch[3].trim();
-
-      const fromNode = parseNodeShape(fromPart);
-      const toNode = parseNodeShape(toPart);
-
-      if (fromNode) {
-        if (!nodeDefs.has(fromNode.id) || fromNode.label !== fromNode.id) {
-          nodeDefs.set(fromNode.id, fromNode);
-        }
-      }
-      if (toNode) {
-        if (!nodeDefs.has(toNode.id) || toNode.label !== toNode.id) {
-          nodeDefs.set(toNode.id, toNode);
-        }
-      }
-
-      if (fromNode && toNode) {
-        edges.push({
-          from: fromNode.id,
-          to: toNode.id,
-          label: edgeLabel
-        });
-        continue;
-      }
-    }
-
-    // Standalone node definition: A["My Node"]
-    const standalone = parseNodeShape(line);
-    if (standalone) {
-      nodeDefs.set(standalone.id, standalone);
+    // Handle subgraph declarations: subgraph Backend or subgraph Backend["Core Services"]
+    const sgMatch = rawLine.match(/^subgraph\s+([a-zA-Z0-9_]+)(?:\s*\["?(.*?)"?\])?/i);
+    if (sgMatch) {
+      currentSubgraph = {
+        id: sgMatch[1],
+        title: sgMatch[2] || sgMatch[1],
+        nodeIds: new Set()
+      };
+      subgraphs.push(currentSubgraph);
       continue;
     }
 
-    throw new Error(`Syntax error at line ${i + 1}: unexpected token "${line}"`);
+    if (rawLine.toLowerCase() === 'end') {
+      currentSubgraph = null;
+      continue;
+    }
+
+    // Split any chained edges (e.g. A --> B --> C)
+    const expandedLines = splitChainedEdges(rawLine);
+
+    for (const line of expandedLines) {
+      // Check for edge: A --> B or A -->|label| B or A -- label --> B
+      const edgeMatch = line.match(/^(.+?)\s*(?:-->|==>|-\.->)\s*(?:\|([^|]+)\|)?\s*(.+)$/);
+      if (edgeMatch) {
+        const fromPart = edgeMatch[1].trim();
+        const edgeLabel = edgeMatch[2] ? edgeMatch[2].trim() : '';
+        const toPart = edgeMatch[3].trim();
+
+        const fromNode = parseNodeShape(fromPart);
+        const toNode = parseNodeShape(toPart);
+
+        if (fromNode) {
+          if (!nodeDefs.has(fromNode.id) || fromNode.label !== fromNode.id) {
+            nodeDefs.set(fromNode.id, fromNode);
+          }
+          if (currentSubgraph) currentSubgraph.nodeIds.add(fromNode.id);
+        }
+        if (toNode) {
+          if (!nodeDefs.has(toNode.id) || toNode.label !== toNode.id) {
+            nodeDefs.set(toNode.id, toNode);
+          }
+          if (currentSubgraph) currentSubgraph.nodeIds.add(toNode.id);
+        }
+
+        if (fromNode && toNode) {
+          edges.push({
+            from: fromNode.id,
+            to: toNode.id,
+            label: edgeLabel
+          });
+          continue;
+        }
+      }
+
+      // Standalone node definition: A["My Node"]
+      const standalone = parseNodeShape(line);
+      if (standalone) {
+        nodeDefs.set(standalone.id, standalone);
+        if (currentSubgraph) currentSubgraph.nodeIds.add(standalone.id);
+        continue;
+      }
+
+      // Instead of crashing, record warning and continue parsing valid elements
+      warnings.push({ line: i + 1, text: line });
+    }
   }
 
   if (nodeDefs.size === 0) {
-    throw new Error('No nodes found in Mermaid flowchart markup.');
+    throw new Error('No valid nodes found in Mermaid flowchart markup.');
   }
 
   // Calculate Levels using topological / BFS traversal
@@ -1090,6 +1152,36 @@ function parseFlowchart(lines) {
     });
   });
 
+  // Render Subgraphs as group-boundary elements wrapping enclosed nodes
+  subgraphs.forEach(sg => {
+    const enclosedPos = [];
+    sg.nodeIds.forEach(nId => {
+      if (nodePositions.has(nId)) enclosedPos.push(nodePositions.get(nId));
+    });
+
+    if (enclosedPos.length > 0) {
+      const minX = Math.min(...enclosedPos.map(p => p.x));
+      const minY = Math.min(...enclosedPos.map(p => p.y));
+      const maxX = Math.max(...enclosedPos.map(p => p.x + p.width));
+      const maxY = Math.max(...enclosedPos.map(p => p.y + p.height));
+
+      elements.unshift({
+        id: generateId(),
+        type: 'group-boundary',
+        x: minX - 25,
+        y: minY - 35,
+        width: (maxX - minX) + 50,
+        height: (maxY - minY) + 55,
+        title: sg.title,
+        strokeColor: '#495057',
+        backgroundColor: 'rgba(241, 243, 245, 0.45)',
+        strokeStyle: 'dashed',
+        strokeWidth: 2,
+        seed: generateSeed()
+      });
+    }
+  });
+
   // Connect edges
   edges.forEach(edge => {
     const pFrom = nodePositions.get(edge.from);
@@ -1120,7 +1212,138 @@ function parseFlowchart(lines) {
     }
   });
 
-  return { success: true, elements };
+  return { success: true, elements, warnings };
+}
+
+/**
+ * Parses Mermaid stateDiagram / stateDiagram-v2 lines into canvas elements.
+ */
+function parseStateDiagram(lines) {
+  const elements = [];
+  const stateDefs = new Map(); // id -> { label, stateType }
+  const transitions = []; // { from, to, label }
+  const warnings = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line || line.startsWith('%%')) continue;
+
+    // Transition: [*] --> State1 or State1 --> State2: event or State1 --> [*]
+    const transMatch = line.match(/^(\[\*\]|[a-zA-Z0-9_]+)\s*-->\s*(\[\*\]|[a-zA-Z0-9_]+)(?:\s*:\s*(.+))?$/);
+    if (transMatch) {
+      const from = transMatch[1];
+      const to = transMatch[2];
+      const eventLabel = transMatch[3] ? transMatch[3].trim() : '';
+
+      if (from === '[*]') {
+        stateDefs.set('__start__', { id: '__start__', label: 'Start', stateType: 'initial' });
+      } else if (!stateDefs.has(from)) {
+        stateDefs.set(from, { id: from, label: from, stateType: 'normal' });
+      }
+
+      if (to === '[*]') {
+        stateDefs.set('__end__', { id: '__end__', label: 'End', stateType: 'final' });
+      } else if (!stateDefs.has(to)) {
+        stateDefs.set(to, { id: to, label: to, stateType: 'normal' });
+      }
+
+      transitions.push({
+        from: from === '[*]' ? '__start__' : from,
+        to: to === '[*]' ? '__end__' : to,
+        label: eventLabel
+      });
+      continue;
+    }
+
+    // State definition: state "Label" as StateId or StateId: description
+    const stateDefMatch = line.match(/^state\s+["']?([^"']+)["']?\s+as\s+([a-zA-Z0-9_]+)$/i) ||
+                          line.match(/^([a-zA-Z0-9_]+)\s*:\s*(.+)$/);
+    if (stateDefMatch) {
+      const id = stateDefMatch[2] || stateDefMatch[1];
+      const label = stateDefMatch[1] || stateDefMatch[2];
+      stateDefs.set(id, { id, label, stateType: 'normal' });
+      continue;
+    }
+
+    // Single state name: State1
+    const singleMatch = line.match(/^([a-zA-Z0-9_]+)$/);
+    if (singleMatch && singleMatch[1] !== '[*]') {
+      stateDefs.set(singleMatch[1], { id: singleMatch[1], label: singleMatch[1], stateType: 'normal' });
+      continue;
+    }
+
+    warnings.push({ line: i + 1, text: line });
+  }
+
+  if (stateDefs.size === 0) {
+    throw new Error('No states found in Mermaid state diagram.');
+  }
+
+  // Layout states horizontally
+  const nodePositions = new Map();
+  let curX = 80;
+  let curY = 120;
+  const stepX = 220;
+
+  stateDefs.forEach((st, id) => {
+    const elemId = generateId();
+    const isStart = st.stateType === 'initial';
+    const isEnd = st.stateType === 'final';
+    const width = isStart || isEnd ? 50 : 160;
+    const height = isStart || isEnd ? 50 : 70;
+
+    nodePositions.set(id, {
+      elemId,
+      x: curX,
+      y: curY,
+      width,
+      height,
+      centerX: curX + width / 2,
+      centerY: curY + height / 2
+    });
+
+    elements.push({
+      id: elemId,
+      type: 'state-node',
+      x: curX,
+      y: curY,
+      width,
+      height,
+      label: st.label,
+      stateType: st.stateType,
+      strokeColor: isStart ? '#2b8a3e' : isEnd ? '#c92a2a' : '#1971c2',
+      backgroundColor: isStart ? '#ebfbee' : isEnd ? '#fff5f5' : '#e7f5ff',
+      seed: generateSeed()
+    });
+
+    curX += stepX;
+  });
+
+  // Connect transitions
+  transitions.forEach(tr => {
+    const pFrom = nodePositions.get(tr.from);
+    const pTo = nodePositions.get(tr.to);
+    if (pFrom && pTo) {
+      elements.push({
+        id: generateId(),
+        type: 'arrow',
+        x: pFrom.centerX,
+        y: pFrom.centerY,
+        width: pTo.centerX - pFrom.centerX,
+        height: pTo.centerY - pFrom.centerY,
+        label: tr.label,
+        direction: 'forward',
+        strokeColor: '#343a40',
+        strokeWidth: 2,
+        isAnimated: true,
+        startBinding: { elementId: pFrom.elemId },
+        endBinding: { elementId: pTo.elemId },
+        seed: generateSeed()
+      });
+    }
+  });
+
+  return { success: true, elements, warnings };
 }
 
 /**

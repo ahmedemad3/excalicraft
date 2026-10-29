@@ -190,10 +190,16 @@ console.log('--- Suite 4.2: Bi-directional Mermaid.js Synchronization (TC-S4-MRM
   assert.strictEqual(result.success, false, 'Must report failure on malformed input');
   assert(result.error && result.error.includes('Unsupported diagram type'), 'Error message must be informative');
 
-  const brokenFlowchart = `graph TD\n  ValidNode\n  Broken Line [[[[[]]]]`;
+  const brokenFlowchart = `graph TD\n  Broken Line [[[[[]]]]`;
   const result2 = importFromMermaid(brokenFlowchart);
-  assert.strictEqual(result2.success, false, 'Must fail on broken syntax inside flowchart');
+  assert.strictEqual(result2.success, false, 'Must fail on broken syntax inside flowchart with no valid nodes');
   assert(result2.error && result2.error.includes('Syntax error'), 'Must report Syntax error');
+
+  // Verify Sprint 7 per-line tolerance when at least one node is valid
+  const partialFlowchart = `graph TD\n  ValidNode\n  Broken Line [[[[[]]]]`;
+  const result3 = importFromMermaid(partialFlowchart);
+  assert.strictEqual(result3.success, true, 'Sprint 7 per-line tolerance imports valid nodes');
+  assert(result3.warnings && result3.warnings.length > 0, 'Sprint 7 records warning for broken line');
 
   console.log('✅ TC-S4-MRM-03: Mermaid Error Handling for Malformed Input passed.');
   passedCount++;
