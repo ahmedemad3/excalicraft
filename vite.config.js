@@ -7,6 +7,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export default defineConfig({
+  // Relative asset paths so the build works on GitHub Pages (/excalicraft/) and locally.
+  base: './',
   server: {
     port: 5174,
     strictPort: false,
